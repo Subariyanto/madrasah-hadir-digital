@@ -9,13 +9,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script>
-tailwind.config={theme:{extend:{colors:{primary:'#16a34a',primaryDark:'#15803d',primaryLight:'#bbf7d0'}}}}
-</script>
+<script>tailwind.config={theme:{extend:{colors:{primary:'#16a34a',primaryDark:'#15803d',primaryLight:'#bbf7d0'}}}}</script>
 <style>
 body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f0fdf4}
 .sidebar{width:260px;background:#15803d;min-height:100vh;position:fixed;left:0;top:0;z-index:50;transition:transform .3s}
-.sidebar.hidden-mobile{transform:translateX(-260px)}
 .sidebar a,.sidebar button{display:flex;align-items:center;gap:8px;padding:10px 16px;color:#fff;text-decoration:none;border:none;background:none;width:100%;text-align:left;cursor:pointer;font-size:14px;border-radius:6px;margin:2px 8px}
 .sidebar a:hover,.sidebar button:hover{background:rgba(255,255,255,.15)}
 .sidebar a.active{background:rgba(255,255,255,.25);font-weight:600}
@@ -43,6 +40,32 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 </style>
 </head>
 <body>
+<!-- AKTIVASI SCREEN -->
+<div id="aktivasiScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:300;display:flex;align-items:center;justify-content:center">
+<div class="card" style="max-width:400px;width:90%;text-align:center">
+<h2 style="color:#15803d;margin-bottom:4px">🔑 Aktivasi Aplikasi</h2>
+<p style="color:#6b7280;font-size:13px;margin-bottom:8px">Madrasah Hadir Digital</p>
+<p style="color:#374151;font-size:12px;margin-bottom:16px">Masukkan kode aktivasi yang diberikan oleh Pengawas Madrasah untuk menggunakan aplikasi ini.</p>
+<input type="text" id="kodeAktivasi" placeholder="Contoh: MHD-ALHIKMAH-2026" style="margin-bottom:12px;text-transform:uppercase">
+<button class="btn btn-primary" style="width:100%" onclick="doAktivasi()">Aktivasi</button>
+<p id="aktivasiError" style="color:#dc2626;font-size:12px;margin-top:8px;display:none"></p>
+<p id="aktivasiInfo" style="color:#6b7280;font-size:11px;margin-top:16px">Hubungi Pengawas Madrasah KKMA 04 Jember untuk mendapatkan kode aktivasi.</p>
+</div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:200;display:flex;align-items:center;justify-content:center">
+<div class="card" style="max-width:360px;width:90%;text-align:center">
+<h2 style="color:#15803d;margin-bottom:4px">🕌 <span id="loginTitle">Madrasah Hadir Digital</span></h2>
+<p style="color:#6b7280;font-size:13px;margin-bottom:20px">Sistem Presensi Digital</p>
+<input type="text" id="loginUser" placeholder="Username" style="margin-bottom:10px"><br>
+<input type="password" id="loginPass" placeholder="Password" style="margin-bottom:16px"><br>
+<button class="btn btn-primary" style="width:100%" onclick="doLogin()">Masuk</button>
+<p id="loginError" style="color:#dc2626;font-size:12px;margin-top:8px;display:none">Username atau password salah</p>
+</div>
+</div>
+
+<!-- SIDEBAR -->
 <div class="sidebar" id="sidebar">
 <div style="padding:16px;border-bottom:1px solid rgba(255,255,255,.2)">
 <h2 style="color:#fff;font-size:16px;margin:0" id="appTitle">Madrasah Hadir Digital</h2>
@@ -60,6 +83,8 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <button onclick="logout()" style="margin-top:20px;color:#fecaca">🚪 Logout</button>
 </nav>
 </div>
+
+<!-- MAIN -->
 <div class="main" id="mainContent">
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
 <button onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:24px;cursor:pointer" id="hamburger">☰</button>
@@ -67,17 +92,28 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 </div>
 <div id="pageContent"></div>
 </div>
-<div id="loginScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:200;display:flex;align-items:center;justify-content:center">
-<div class="card" style="max-width:360px;width:90%;text-align:center">
-<h2 style="color:#15803d;margin-bottom:4px">🕌 Madrasah Hadir Digital</h2>
-<p style="color:#6b7280;font-size:13px;margin-bottom:20px">Sistem Presensi Digital</p>
-<input type="text" id="loginUser" placeholder="Username" style="margin-bottom:10px"><br>
-<input type="password" id="loginPass" placeholder="Password" style="margin-bottom:16px"><br>
-<button class="btn btn-primary" style="width:100%" onclick="doLogin()">Masuk</button>
-<p id="loginError" style="color:#dc2626;font-size:12px;margin-top:8px;display:none">Username atau password salah</p>
-</div>
-</div>
+
 <script>
+// ============================================================
+// SISTEM LISENSI - KODE AKTIVASI
+// Yanto (admin pusat) mengelola daftar kode di sini.
+// Untuk menambah madrasah baru, tambahkan entry di LISENSI_DB.
+// ============================================================
+const LISENSI_DB = [
+  { kode: 'MHD-ALHIKMAH-2026', madrasah: 'MA Al-Hikmah', berlaku: '2027-12-31' },
+  { kode: 'MHD-ANNUR-2026', madrasah: 'MA An-Nur', berlaku: '2027-12-31' },
+  { kode: 'MHD-ALMAARIF-2026', madrasah: 'MA Al-Maarif', berlaku: '2027-12-31' },
+  { kode: 'MHD-DARUSSALAM-2026', madrasah: 'MA Darussalam', berlaku: '2027-12-31' },
+  { kode: 'MHD-ALFALAH-2026', madrasah: 'MA Al-Falah', berlaku: '2027-12-31' },
+  { kode: 'MHD-ALHUDA-2026', madrasah: 'MA Al-Huda', berlaku: '2027-12-31' },
+  { kode: 'MHD-ALMUNAWWAROH-2026', madrasah: 'MA Al-Munawwaroh', berlaku: '2027-12-31' },
+  { kode: 'MHD-NURULJADID-2026', madrasah: 'MA Nurul Jadid', berlaku: '2027-12-31' },
+  { kode: 'MHD-MIFTAHULULUM-2026', madrasah: 'MA Miftahul Ulum', berlaku: '2027-12-31' },
+  { kode: 'MHD-RAUDLATULHASANAH-2026', madrasah: 'MA Raudlatul Hasanah', berlaku: '2027-12-31' },
+  // Tambahkan kode baru di sini untuk madrasah lain
+  // { kode: 'MHD-NAMAMADRASAH-2026', madrasah: 'MA Nama', berlaku: '2027-12-31' },
+];
+
 // ===== DATA LAYER =====
 const DB={
   get(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}},
@@ -85,6 +121,58 @@ const DB={
   del(k){localStorage.removeItem(k)}
 };
 
+// ===== AKTIVASI =====
+function checkLisensi(){
+  const lisensi = DB.get('lisensi');
+  if(!lisensi){
+    showAktivasi(); return false;
+  }
+  // Cek masa berlaku
+  const now = new Date().toISOString().slice(0,10);
+  if(lisensi.berlaku < now){
+    DB.del('lisensi');
+    showAktivasi('Lisensi sudah kadaluarsa. Hubungi Pengawas untuk kode baru.');
+    return false;
+  }
+  // Verifikasi kode masih ada di database
+  const valid = LISENSI_DB.find(l => l.kode === lisensi.kode);
+  if(!valid){
+    DB.del('lisensi');
+    showAktivasi('Kode lisensi tidak valid lagi. Hubungi Pengawas.');
+    return false;
+  }
+  return true;
+}
+
+function showAktivasi(msg){
+  document.getElementById('aktivasiScreen').style.display='flex';
+  document.getElementById('loginScreen').style.display='none';
+  if(msg){
+    const el=document.getElementById('aktivasiError');
+    el.textContent=msg; el.style.display='block';
+  }
+}
+
+function doAktivasi(){
+  const input=document.getElementById('kodeAktivasi').value.trim().toUpperCase();
+  const errEl=document.getElementById('aktivasiError');
+  if(!input){errEl.textContent='Masukkan kode aktivasi';errEl.style.display='block';return}
+  const found=LISENSI_DB.find(l=>l.kode===input);
+  if(!found){errEl.textContent='Kode aktivasi tidak valid. Periksa kembali atau hubungi Pengawas.';errEl.style.display='block';return}
+  const now=new Date().toISOString().slice(0,10);
+  if(found.berlaku<now){errEl.textContent='Kode ini sudah kadaluarsa (berlaku s/d '+found.berlaku+'). Hubungi Pengawas untuk kode baru.';errEl.style.display='block';return}
+  // Simpan lisensi
+  DB.set('lisensi',{kode:found.kode,madrasah:found.madrasah,berlaku:found.berlaku,aktivasiTanggal:now});
+  // Set nama madrasah otomatis
+  const settings=DB.get('settings')||{namaSekolah:'',alamat:''};
+  settings.namaSekolah=found.madrasah;
+  DB.set('settings',settings);
+  document.getElementById('aktivasiScreen').style.display='none';
+  errEl.style.display='none';
+  boot();
+}
+
+// ===== INIT DATA =====
 function initData(){
   if(!DB.get('initialized')){
     const kelas=[
@@ -92,47 +180,7 @@ function initData(){
       {id:'k3',nama:'XI IPA'},{id:'k4',nama:'XI IPS'},
       {id:'k5',nama:'XII IPA'},{id:'k6',nama:'XII IPS'}
     ];
-    const siswa=[
-      {id:'s01',nama:'Ahmad Fauzi',kelas:'k1',nisn:'0081234001'},
-      {id:'s02',nama:'Siti Aisyah',kelas:'k1',nisn:'0081234002'},
-      {id:'s03',nama:'Muh. Rizki',kelas:'k1',nisn:'0081234003'},
-      {id:'s04',nama:'Fatimah Zahra',kelas:'k1',nisn:'0081234004'},
-      {id:'s05',nama:'Ilham Maulana',kelas:'k1',nisn:'0081234005'},
-      {id:'s06',nama:'Nur Halimah',kelas:'k2',nisn:'0081234006'},
-      {id:'s07',nama:'Rizal Firmansyah',kelas:'k2',nisn:'0081234007'},
-      {id:'s08',nama:'Dewi Safitri',kelas:'k2',nisn:'0081234008'},
-      {id:'s09',nama:'Andi Prasetyo',kelas:'k2',nisn:'0081234009'},
-      {id:'s10',nama:'Laila Nur',kelas:'k2',nisn:'0081234010'},
-      {id:'s11',nama:'Bayu Setiawan',kelas:'k3',nisn:'0081234011'},
-      {id:'s12',nama:'Rina Wulandari',kelas:'k3',nisn:'0081234012'},
-      {id:'s13',nama:'Dimas Arya',kelas:'k3',nisn:'0081234013'},
-      {id:'s14',nama:'Putri Amelia',kelas:'k3',nisn:'0081234014'},
-      {id:'s15',nama:'Hasan Basri',kelas:'k3',nisn:'0081234015'},
-      {id:'s16',nama:'Nadia Fitri',kelas:'k4',nisn:'0081234016'},
-      {id:'s17',nama:'Yoga Pratama',kelas:'k4',nisn:'0081234017'},
-      {id:'s18',nama:'Anisa Rahma',kelas:'k4',nisn:'0081234018'},
-      {id:'s19',nama:'Fajar Hidayat',kelas:'k4',nisn:'0081234019'},
-      {id:'s20',nama:'Sari Indah',kelas:'k4',nisn:'0081234020'},
-      {id:'s21',nama:'Rendi Saputra',kelas:'k5',nisn:'0081234021'},
-      {id:'s22',nama:'Mega Puspita',kelas:'k5',nisn:'0081234022'},
-      {id:'s23',nama:'Arif Rahman',kelas:'k5',nisn:'0081234023'},
-      {id:'s24',nama:'Dina Marlina',kelas:'k5',nisn:'0081234024'},
-      {id:'s25',nama:'Wahyu Eko',kelas:'k5',nisn:'0081234025'},
-      {id:'s26',nama:'Lestari Dewi',kelas:'k6',nisn:'0081234026'},
-      {id:'s27',nama:'Bagus Wicaksono',kelas:'k6',nisn:'0081234027'},
-      {id:'s28',nama:'Fitriani',kelas:'k6',nisn:'0081234028'},
-      {id:'s29',nama:'Galih Permana',kelas:'k6',nisn:'0081234029'},
-      {id:'s30',nama:'Hasna Aulia',kelas:'k6',nisn:'0081234030'}
-    ];
-    const today=new Date().toISOString().slice(0,10);
-    const presensi=[];
-    siswa.slice(0,20).forEach(s=>{
-      presensi.push({siswaId:s.id,tanggal:today,status:'hadir',waktu:new Date().toLocaleTimeString('id-ID')});
-    });
-    siswa.slice(20,24).forEach(s=>{presensi.push({siswaId:s.id,tanggal:today,status:'sakit',waktu:''})});
-    siswa.slice(24,27).forEach(s=>{presensi.push({siswaId:s.id,tanggal:today,status:'izin',waktu:''})});
-    DB.set('kelas',kelas);DB.set('siswa',siswa);DB.set('presensi',presensi);
-    DB.set('settings',{namaSekolah:'MA Al-Hikmah',alamat:'Jl. Pendidikan No. 1, Jember'});
+    DB.set('kelas',kelas);DB.set('siswa',[]);DB.set('presensi',[]);
     DB.set('credentials',{username:'admin',password:'admin123'});
     DB.set('initialized',true);
   }
@@ -142,8 +190,12 @@ function initData(){
 let loggedIn=false;
 function checkAuth(){
   loggedIn=sessionStorage.getItem('loggedIn')==='true';
-  document.getElementById('loginScreen').style.display=loggedIn?'none':'flex';
-  if(loggedIn){initApp()}
+  if(loggedIn){
+    document.getElementById('loginScreen').style.display='none';
+    initApp();
+  } else {
+    document.getElementById('loginScreen').style.display='flex';
+  }
 }
 function doLogin(){
   const u=document.getElementById('loginUser').value;
@@ -176,7 +228,7 @@ function render(){
   const c=document.getElementById('pageContent');
   switch(currentPage){
     case'dashboard':c.innerHTML=renderDashboard();break;
-    case'presensi':c.innerHTML=renderPresensi();break;
+    case'presensi':c.innerHTML=renderPresensi();setTimeout(loadPresensiKelas,50);break;
     case'scan':c.innerHTML=renderScan();setTimeout(initScanner,100);break;
     case'siswa':c.innerHTML=renderSiswa();break;
     case'kelas':c.innerHTML=renderKelas();break;
@@ -195,9 +247,13 @@ function renderDashboard(){
   const hadir=todayP.filter(p=>p.status==='hadir').length;
   const sakit=todayP.filter(p=>p.status==='sakit').length;
   const izin=todayP.filter(p=>p.status==='izin').length;
-  const alpha=siswa.length-hadir-sakit-izin;
+  const alpha=todayP.filter(p=>p.status==='alpha').length;
   const persen=siswa.length?Math.round(hadir/siswa.length*100):0;
+  const lisensi=DB.get('lisensi')||{};
   return `
+  <div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#166534">
+    🔑 Lisensi aktif: <strong>${lisensi.madrasah||'-'}</strong> | Berlaku s/d: ${lisensi.berlaku||'-'}
+  </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">
     <div class="stat-card"><div class="num">${siswa.length}</div><div class="label">Total Siswa</div></div>
     <div class="stat-card"><div class="num" style="color:#16a34a">${hadir}</div><div class="label">Hadir</div></div>
@@ -207,44 +263,48 @@ function renderDashboard(){
     <div class="stat-card"><div class="num">${persen}%</div><div class="label">Kehadiran</div></div>
   </div>
   <div class="card"><h3 style="margin:0 0 12px;font-size:15px;color:#15803d">Presensi Hari Ini (${today})</h3>
-  <div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>Kelas</th><th>Status</th><th>Waktu</th></tr>
-  ${todayP.slice(0,15).map((p,i)=>{
+  ${todayP.length===0?'<p style="color:#6b7280;font-size:13px">Belum ada data presensi hari ini.</p>':''}
+  ${todayP.length>0?`<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>Kelas</th><th>Status</th><th>Waktu</th></tr>
+  ${todayP.slice(0,20).map((p,i)=>{
     const s=(DB.get('siswa')||[]).find(x=>x.id===p.siswaId);
     const k=(DB.get('kelas')||[]).find(x=>x.id===(s?s.kelas:''));
-    return `<tr><td>${i+1}</td><td>${s?s.nama:'-'}</td><td>${k?k.nama:'-'}</td><td><span class="badge badge-${p.status}">${p.status}</span></td><td>${p.waktu||'-'}</td></tr>`;
+    return '<tr><td>'+(i+1)+'</td><td>'+(s?s.nama:'-')+'</td><td>'+(k?k.nama:'-')+'</td><td><span class="badge badge-'+p.status+'">'+p.status+'</span></td><td>'+(p.waktu||'-')+'</td></tr>';
   }).join('')}
-  ${todayP.length>15?`<tr><td colspan="5" style="text-align:center;color:#6b7280">... dan ${todayP.length-15} lainnya</td></tr>`:''}
-  </table></div></div>`;
+  ${todayP.length>20?'<tr><td colspan="5" style="text-align:center;color:#6b7280">... dan '+(todayP.length-20)+' lainnya</td></tr>':''}
+  </table></div>`:''}
+  </div>`;
 }
 
 // ===== PRESENSI MANUAL =====
 function renderPresensi(){
   const kelas=DB.get('kelas')||[];
   const today=new Date().toISOString().slice(0,10);
-  return `<div class="card">
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-    <select id="selKelas" onchange="loadPresensiKelas()" style="max-width:200px">${kelas.map(k=>`<option value="${k.id}">${k.nama}</option>`).join('')}</select>
-    <input type="date" id="selTanggal" value="${today}" onchange="loadPresensiKelas()" style="max-width:180px">
-    <button class="btn btn-primary" onclick="simpanPresensi()">💾 Simpan</button>
-  </div>
-  <div id="presensiList"></div></div>`;
+  return '<div class="card">'+
+  '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">'+
+    '<select id="selKelas" onchange="loadPresensiKelas()" style="max-width:200px">'+kelas.map(k=>'<option value="'+k.id+'">'+k.nama+'</option>').join('')+'</select>'+
+    '<input type="date" id="selTanggal" value="'+today+'" onchange="loadPresensiKelas()" style="max-width:180px">'+
+    '<button class="btn btn-primary" onclick="simpanPresensi()">💾 Simpan</button>'+
+  '</div>'+
+  '<div id="presensiList"></div></div>';
 }
 function loadPresensiKelas(){
-  const kelasId=document.getElementById('selKelas').value;
-  const tanggal=document.getElementById('selTanggal').value;
+  const kelasId=document.getElementById('selKelas')?document.getElementById('selKelas').value:'';
+  const tanggal=document.getElementById('selTanggal')?document.getElementById('selTanggal').value:'';
+  if(!kelasId||!tanggal)return;
   const siswa=(DB.get('siswa')||[]).filter(s=>s.kelas===kelasId);
   const presensi=DB.get('presensi')||[];
+  if(siswa.length===0){document.getElementById('presensiList').innerHTML='<p style="color:#6b7280;font-size:13px">Belum ada siswa di kelas ini. Tambahkan siswa terlebih dahulu.</p>';return}
   let html='<table><tr><th>No</th><th>Nama</th><th>NISN</th><th>Status</th></tr>';
   siswa.forEach((s,i)=>{
     const existing=presensi.find(p=>p.siswaId===s.id&&p.tanggal===tanggal);
     const st=existing?existing.status:'hadir';
-    html+=`<tr><td>${i+1}</td><td>${s.nama}</td><td>${s.nisn}</td><td>
-    <select id="st-${s.id}" style="max-width:100px">
-      <option value="hadir" ${st==='hadir'?'selected':''}>Hadir</option>
-      <option value="sakit" ${st==='sakit'?'selected':''}>Sakit</option>
-      <option value="izin" ${st==='izin'?'selected':''}>Izin</option>
-      <option value="alpha" ${st==='alpha'?'selected':''}>Alpha</option>
-    </select></td></tr>`;
+    html+='<tr><td>'+(i+1)+'</td><td>'+s.nama+'</td><td>'+s.nisn+'</td><td>'+
+    '<select id="st-'+s.id+'" style="max-width:100px">'+
+      '<option value="hadir" '+(st==='hadir'?'selected':'')+'>Hadir</option>'+
+      '<option value="sakit" '+(st==='sakit'?'selected':'')+'>Sakit</option>'+
+      '<option value="izin" '+(st==='izin'?'selected':'')+'>Izin</option>'+
+      '<option value="alpha" '+(st==='alpha'?'selected':'')+'>Alpha</option>'+
+    '</select></td></tr>';
   });
   html+='</table>';
   document.getElementById('presensiList').innerHTML=html;
@@ -253,9 +313,12 @@ function simpanPresensi(){
   const kelasId=document.getElementById('selKelas').value;
   const tanggal=document.getElementById('selTanggal').value;
   const siswa=(DB.get('siswa')||[]).filter(s=>s.kelas===kelasId);
+  if(siswa.length===0){alert('Tidak ada siswa di kelas ini');return}
   let presensi=DB.get('presensi')||[];
   siswa.forEach(s=>{
-    const status=document.getElementById('st-'+s.id).value;
+    const el=document.getElementById('st-'+s.id);
+    if(!el)return;
+    const status=el.value;
     const idx=presensi.findIndex(p=>p.siswaId===s.id&&p.tanggal===tanggal);
     const waktu=status==='hadir'?new Date().toLocaleTimeString('id-ID'):'';
     if(idx>=0){presensi[idx]={...presensi[idx],status,waktu}}
@@ -268,17 +331,17 @@ function simpanPresensi(){
 // ===== SCAN QR =====
 let qrScanner=null;
 function renderScan(){
-  return `<div class="card">
-  <p style="font-size:13px;color:#6b7280;margin-bottom:12px">Arahkan kamera ke kartu QR siswa untuk mencatat kehadiran otomatis.</p>
-  <div id="qr-reader" style="width:100%;max-width:400px;margin:0 auto"></div>
-  <div id="scanResult" style="margin-top:12px;text-align:center"></div>
-  <div id="scanLog" style="margin-top:16px"><h4 style="font-size:14px;color:#15803d">Log Scan Hari Ini</h4><div id="scanLogList"></div></div>
-  </div>`;
+  return '<div class="card">'+
+  '<p style="font-size:13px;color:#6b7280;margin-bottom:12px">Arahkan kamera ke kartu QR siswa untuk mencatat kehadiran otomatis.</p>'+
+  '<div id="qr-reader" style="width:100%;max-width:400px;margin:0 auto"></div>'+
+  '<div id="scanResult" style="margin-top:12px;text-align:center"></div>'+
+  '<div id="scanLog" style="margin-top:16px"><h4 style="font-size:14px;color:#15803d">Log Scan Hari Ini</h4><div id="scanLogList"></div></div>'+
+  '</div>';
 }
 function initScanner(){
   const el=document.getElementById('qr-reader');
   if(!el)return;
-  if(qrScanner){qrScanner.clear();qrScanner=null}
+  if(qrScanner){try{qrScanner.clear()}catch(e){}qrScanner=null}
   qrScanner=new Html5QrcodeScanner("qr-reader",{fps:10,qrbox:250});
   qrScanner.render(onScanSuccess,()=>{});
   updateScanLog();
@@ -289,11 +352,14 @@ function onScanSuccess(decoded){
   if(!siswa){res.innerHTML='<p style="color:#dc2626">❌ Siswa tidak ditemukan: '+decoded+'</p>';return}
   const today=new Date().toISOString().slice(0,10);
   let presensi=DB.get('presensi')||[];
-  const existing=presensi.find(p=>p.siswaId===siswa.id&&p.tanggal===today);
-  if(existing){res.innerHTML=`<p style="color:#d97706">⚠️ ${siswa.nama} sudah tercatat hadir hari ini</p>`;return}
-  presensi.push({siswaId:siswa.id,tanggal:today,status:'hadir',waktu:new Date().toLocaleTimeString('id-ID')});
+  const existing=presensi.find(p=>p.siswaId===siswa.id&&p.tanggal===today&&p.status==='hadir');
+  if(existing){res.innerHTML='<p style="color:#d97706">⚠️ '+siswa.nama+' sudah tercatat hadir hari ini</p>';return}
+  const idx=presensi.findIndex(p=>p.siswaId===siswa.id&&p.tanggal===today);
+  const waktu=new Date().toLocaleTimeString('id-ID');
+  if(idx>=0){presensi[idx]={siswaId:siswa.id,tanggal:today,status:'hadir',waktu}}
+  else{presensi.push({siswaId:siswa.id,tanggal:today,status:'hadir',waktu})}
   DB.set('presensi',presensi);
-  res.innerHTML=`<p style="color:#16a34a">✅ ${siswa.nama} - Hadir (${new Date().toLocaleTimeString('id-ID')})</p>`;
+  res.innerHTML='<p style="color:#16a34a">✅ '+siswa.nama+' - Hadir ('+waktu+')</p>';
   updateScanLog();
 }
 function updateScanLog(){
@@ -304,7 +370,7 @@ function updateScanLog(){
   if(!el)return;
   el.innerHTML=presensi.slice(-10).reverse().map(p=>{
     const s=siswa.find(x=>x.id===p.siswaId);
-    return `<div style="padding:4px 0;font-size:13px;border-bottom:1px solid #e5e7eb">${s?s.nama:'?'} - ${p.waktu}</div>`;
+    return '<div style="padding:4px 0;font-size:13px;border-bottom:1px solid #e5e7eb">'+(s?s.nama:'?')+' - '+p.waktu+'</div>';
   }).join('')||'<p style="color:#6b7280;font-size:13px">Belum ada scan hari ini</p>';
 }
 
@@ -312,35 +378,36 @@ function updateScanLog(){
 function renderSiswa(){
   const siswa=DB.get('siswa')||[];
   const kelas=DB.get('kelas')||[];
-  return `<div class="card">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-    <span style="font-size:13px;color:#6b7280">Total: ${siswa.length} siswa</span>
-    <button class="btn btn-primary" onclick="showAddSiswa()">+ Tambah Siswa</button>
-  </div>
-  <div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>NISN</th><th>Kelas</th><th>Aksi</th></tr>
-  ${siswa.map((s,i)=>{
+  return '<div class="card">'+
+  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'+
+    '<span style="font-size:13px;color:#6b7280">Total: '+siswa.length+' siswa</span>'+
+    '<button class="btn btn-primary" onclick="showAddSiswa()">+ Tambah Siswa</button>'+
+  '</div>'+
+  (siswa.length===0?'<p style="color:#6b7280;font-size:13px">Belum ada data siswa. Klik tombol Tambah Siswa untuk mulai.</p>':
+  '<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>NISN</th><th>Kelas</th><th>Aksi</th></tr>'+
+  siswa.map((s,i)=>{
     const k=kelas.find(x=>x.id===s.kelas);
-    return `<tr><td>${i+1}</td><td>${s.nama}</td><td>${s.nisn}</td><td>${k?k.nama:'-'}</td><td>
-    <button class="btn btn-secondary" onclick="editSiswa('${s.id}')" style="padding:4px 8px;font-size:12px">✏️</button>
-    <button class="btn btn-danger" onclick="hapusSiswa('${s.id}')" style="padding:4px 8px;font-size:12px">🗑️</button></td></tr>`;
-  }).join('')}</table></div></div>`;
+    return '<tr><td>'+(i+1)+'</td><td>'+s.nama+'</td><td>'+s.nisn+'</td><td>'+(k?k.nama:'-')+'</td><td>'+
+    '<button class="btn btn-secondary" onclick="editSiswa(\''+s.id+'\')" style="padding:4px 8px;font-size:12px">✏️</button> '+
+    '<button class="btn btn-danger" onclick="hapusSiswa(\''+s.id+'\')" style="padding:4px 8px;font-size:12px">🗑️</button></td></tr>';
+  }).join('')+'</table></div>')+'</div>';
 }
 function showAddSiswa(editId){
   const siswa=DB.get('siswa')||[];
   const kelas=DB.get('kelas')||[];
   const s=editId?siswa.find(x=>x.id===editId):null;
-  const html=`<div class="overlay" onclick="if(event.target===this)this.remove()"><div class="modal">
-  <h3 style="margin:0 0 16px;color:#15803d">${s?'Edit':'Tambah'} Siswa</h3>
-  <label style="font-size:13px;color:#374151">Nama</label>
-  <input id="fNama" value="${s?s.nama:''}" style="margin-bottom:10px">
-  <label style="font-size:13px;color:#374151">NISN</label>
-  <input id="fNisn" value="${s?s.nisn:''}" style="margin-bottom:10px">
-  <label style="font-size:13px;color:#374151">Kelas</label>
-  <select id="fKelas" style="margin-bottom:16px">${kelas.map(k=>`<option value="${k.id}" ${s&&s.kelas===k.id?'selected':''}>${k.nama}</option>`).join('')}</select>
-  <div style="display:flex;gap:8px;justify-content:flex-end">
-    <button class="btn btn-secondary" onclick="this.closest('.overlay').remove()">Batal</button>
-    <button class="btn btn-primary" onclick="saveSiswa('${editId||''}')">${s?'Update':'Simpan'}</button>
-  </div></div></div>`;
+  const html='<div class="overlay" onclick="if(event.target===this)this.remove()"><div class="modal">'+
+  '<h3 style="margin:0 0 16px;color:#15803d">'+(s?'Edit':'Tambah')+' Siswa</h3>'+
+  '<label style="font-size:13px;color:#374151">Nama</label>'+
+  '<input id="fNama" value="'+(s?s.nama:'')+'" style="margin-bottom:10px">'+
+  '<label style="font-size:13px;color:#374151">NISN</label>'+
+  '<input id="fNisn" value="'+(s?s.nisn:'')+'" style="margin-bottom:10px">'+
+  '<label style="font-size:13px;color:#374151">Kelas</label>'+
+  '<select id="fKelas" style="margin-bottom:16px">'+kelas.map(k=>'<option value="'+k.id+'" '+(s&&s.kelas===k.id?'selected':'')+'>'+k.nama+'</option>').join('')+'</select>'+
+  '<div style="display:flex;gap:8px;justify-content:flex-end">'+
+    '<button class="btn btn-secondary" onclick="this.closest(\'.overlay\').remove()">Batal</button>'+
+    '<button class="btn btn-primary" onclick="saveSiswa(\''+(editId||'')+'\')">'+(s?'Update':'Simpan')+'</button>'+
+  '</div></div></div>';
   document.body.insertAdjacentHTML('beforeend',html);
 }
 function editSiswa(id){showAddSiswa(id)}
@@ -350,49 +417,44 @@ function saveSiswa(editId){
   const kelas=document.getElementById('fKelas').value;
   if(!nama){alert('Nama harus diisi');return}
   let siswa=DB.get('siswa')||[];
-  if(editId){
-    siswa=siswa.map(s=>s.id===editId?{...s,nama,nisn,kelas}:s);
-  }else{
-    siswa.push({id:'s'+Date.now(),nama,nisn,kelas});
-  }
+  if(editId){siswa=siswa.map(s=>s.id===editId?{...s,nama,nisn,kelas}:s)}
+  else{siswa.push({id:'s'+Date.now(),nama,nisn,kelas})}
   DB.set('siswa',siswa);
-  document.querySelector('.overlay').remove();
-  render();
+  document.querySelector('.overlay').remove();render();
 }
 function hapusSiswa(id){
   if(!confirm('Hapus siswa ini?'))return;
-  DB.set('siswa',(DB.get('siswa')||[]).filter(s=>s.id!==id));
-  render();
+  DB.set('siswa',(DB.get('siswa')||[]).filter(s=>s.id!==id));render();
 }
 
 // ===== DATA KELAS =====
 function renderKelas(){
   const kelas=DB.get('kelas')||[];
   const siswa=DB.get('siswa')||[];
-  return `<div class="card">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-    <span style="font-size:13px;color:#6b7280">Total: ${kelas.length} kelas</span>
-    <button class="btn btn-primary" onclick="showAddKelas()">+ Tambah Kelas</button>
-  </div>
-  <div style="overflow-x:auto"><table><tr><th>No</th><th>Nama Kelas</th><th>Jumlah Siswa</th><th>Aksi</th></tr>
-  ${kelas.map((k,i)=>{
+  return '<div class="card">'+
+  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'+
+    '<span style="font-size:13px;color:#6b7280">Total: '+kelas.length+' kelas</span>'+
+    '<button class="btn btn-primary" onclick="showAddKelas()">+ Tambah Kelas</button>'+
+  '</div>'+
+  '<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama Kelas</th><th>Jumlah Siswa</th><th>Aksi</th></tr>'+
+  kelas.map((k,i)=>{
     const jml=siswa.filter(s=>s.kelas===k.id).length;
-    return `<tr><td>${i+1}</td><td>${k.nama}</td><td>${jml}</td><td>
-    <button class="btn btn-secondary" onclick="editKelas('${k.id}')" style="padding:4px 8px;font-size:12px">✏️</button>
-    <button class="btn btn-danger" onclick="hapusKelas('${k.id}')" style="padding:4px 8px;font-size:12px">🗑️</button></td></tr>`;
-  }).join('')}</table></div></div>`;
+    return '<tr><td>'+(i+1)+'</td><td>'+k.nama+'</td><td>'+jml+'</td><td>'+
+    '<button class="btn btn-secondary" onclick="editKelas(\''+k.id+'\')" style="padding:4px 8px;font-size:12px">✏️</button> '+
+    '<button class="btn btn-danger" onclick="hapusKelas(\''+k.id+'\')" style="padding:4px 8px;font-size:12px">🗑️</button></td></tr>';
+  }).join('')+'</table></div></div>';
 }
 function showAddKelas(editId){
   const kelas=DB.get('kelas')||[];
   const k=editId?kelas.find(x=>x.id===editId):null;
-  const html=`<div class="overlay" onclick="if(event.target===this)this.remove()"><div class="modal">
-  <h3 style="margin:0 0 16px;color:#15803d">${k?'Edit':'Tambah'} Kelas</h3>
-  <label style="font-size:13px;color:#374151">Nama Kelas</label>
-  <input id="fKelasNama" value="${k?k.nama:''}" style="margin-bottom:16px">
-  <div style="display:flex;gap:8px;justify-content:flex-end">
-    <button class="btn btn-secondary" onclick="this.closest('.overlay').remove()">Batal</button>
-    <button class="btn btn-primary" onclick="saveKelas('${editId||''}')">${k?'Update':'Simpan'}</button>
-  </div></div></div>`;
+  const html='<div class="overlay" onclick="if(event.target===this)this.remove()"><div class="modal">'+
+  '<h3 style="margin:0 0 16px;color:#15803d">'+(k?'Edit':'Tambah')+' Kelas</h3>'+
+  '<label style="font-size:13px;color:#374151">Nama Kelas</label>'+
+  '<input id="fKelasNama" value="'+(k?k.nama:'')+'" style="margin-bottom:16px">'+
+  '<div style="display:flex;gap:8px;justify-content:flex-end">'+
+    '<button class="btn btn-secondary" onclick="this.closest(\'.overlay\').remove()">Batal</button>'+
+    '<button class="btn btn-primary" onclick="saveKelas(\''+(editId||'')+'\')">'+(k?'Update':'Simpan')+'</button>'+
+  '</div></div></div>';
   document.body.insertAdjacentHTML('beforeend',html);
 }
 function editKelas(id){showAddKelas(id)}
@@ -406,24 +468,24 @@ function saveKelas(editId){
   document.querySelector('.overlay').remove();render();
 }
 function hapusKelas(id){
-  if(!confirm('Hapus kelas ini? Siswa di kelas ini tidak akan terhapus.'))return;
+  if(!confirm('Hapus kelas ini?'))return;
   DB.set('kelas',(DB.get('kelas')||[]).filter(k=>k.id!==id));render();
 }
 
 // ===== CETAK KARTU QR =====
 function renderKartu(){
   const kelas=DB.get('kelas')||[];
-  return `<div class="card">
-  <div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-    <select id="kartuKelas" style="max-width:200px">
-      <option value="all">Semua Kelas</option>
-      ${kelas.map(k=>`<option value="${k.id}">${k.nama}</option>`).join('')}
-    </select>
-    <button class="btn btn-primary" onclick="generateQRCards()">🔄 Generate</button>
-    <button class="btn btn-secondary" onclick="printCards()">🖨️ Cetak</button>
-  </div>
-  <div id="qrCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"></div>
-  </div>`;
+  return '<div class="card">'+
+  '<div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
+    '<select id="kartuKelas" style="max-width:200px">'+
+      '<option value="all">Semua Kelas</option>'+
+      kelas.map(k=>'<option value="'+k.id+'">'+k.nama+'</option>').join('')+
+    '</select>'+
+    '<button class="btn btn-primary" onclick="generateQRCards()">🔄 Generate</button>'+
+    '<button class="btn btn-secondary" onclick="window.print()">🖨️ Cetak</button>'+
+  '</div>'+
+  '<div id="qrCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"></div>'+
+  '</div>';
 }
 function generateQRCards(){
   const kelasFilter=document.getElementById('kartuKelas')?document.getElementById('kartuKelas').value:'all';
@@ -432,39 +494,39 @@ function generateQRCards(){
   if(kelasFilter!=='all')siswa=siswa.filter(s=>s.kelas===kelasFilter);
   const container=document.getElementById('qrCards');
   if(!container)return;
+  if(siswa.length===0){container.innerHTML='<p style="color:#6b7280;font-size:13px">Tidak ada siswa untuk ditampilkan.</p>';return}
   const settings=DB.get('settings')||{};
   container.innerHTML=siswa.map(s=>{
     const k=kelas.find(x=>x.id===s.kelas);
-    return `<div style="border:1px solid #d1d5db;border-radius:8px;padding:12px;text-align:center;background:#fff">
-    <p style="font-size:11px;color:#15803d;font-weight:600;margin:0 0 4px">${settings.namaSekolah||'Madrasah'}</p>
-    <div id="qr-${s.id}" style="display:inline-block;margin:8px 0"></div>
-    <p style="font-size:13px;font-weight:600;margin:4px 0 0">${s.nama}</p>
-    <p style="font-size:11px;color:#6b7280;margin:2px 0">${k?k.nama:''} | ${s.nisn}</p>
-    </div>`;
+    return '<div style="border:1px solid #d1d5db;border-radius:8px;padding:12px;text-align:center;background:#fff">'+
+    '<p style="font-size:11px;color:#15803d;font-weight:600;margin:0 0 4px">'+(settings.namaSekolah||'Madrasah')+'</p>'+
+    '<div id="qr-'+s.id+'" style="display:inline-block;margin:8px 0"></div>'+
+    '<p style="font-size:13px;font-weight:600;margin:4px 0 0">'+s.nama+'</p>'+
+    '<p style="font-size:11px;color:#6b7280;margin:2px 0">'+(k?k.nama:'')+' | '+s.nisn+'</p>'+
+    '</div>';
   }).join('');
   siswa.forEach(s=>{
     const el=document.getElementById('qr-'+s.id);
     if(el){el.innerHTML='';new QRCode(el,{text:s.id,width:100,height:100})}
   });
 }
-function printCards(){window.print()}
 
 // ===== REKAP PRESENSI =====
 function renderRekap(){
   const kelas=DB.get('kelas')||[];
   const today=new Date().toISOString().slice(0,10);
   const month=today.slice(0,7);
-  return `<div class="card">
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
-    <select id="rekapKelas" style="max-width:180px">
-      <option value="all">Semua Kelas</option>
-      ${kelas.map(k=>`<option value="${k.id}">${k.nama}</option>`).join('')}
-    </select>
-    <input type="month" id="rekapBulan" value="${month}" style="max-width:180px">
-    <button class="btn btn-primary" onclick="loadRekap()">🔍 Tampilkan</button>
-    <button class="btn btn-secondary" onclick="exportRekapPDF()">📄 Export PDF</button>
-  </div>
-  <div id="rekapTable"></div></div>`;
+  return '<div class="card">'+
+  '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center">'+
+    '<select id="rekapKelas" style="max-width:180px">'+
+      '<option value="all">Semua Kelas</option>'+
+      kelas.map(k=>'<option value="'+k.id+'">'+k.nama+'</option>').join('')+
+    '</select>'+
+    '<input type="month" id="rekapBulan" value="'+month+'" style="max-width:180px">'+
+    '<button class="btn btn-primary" onclick="loadRekap()">🔍 Tampilkan</button>'+
+    '<button class="btn btn-secondary" onclick="exportRekapPDF()">📄 Export PDF</button>'+
+  '</div>'+
+  '<div id="rekapTable"></div></div>';
 }
 function loadRekap(){
   const kelasId=document.getElementById('rekapKelas').value;
@@ -473,6 +535,7 @@ function loadRekap(){
   const kelas=DB.get('kelas')||[];
   const presensi=DB.get('presensi')||[];
   if(kelasId!=='all')siswa=siswa.filter(s=>s.kelas===kelasId);
+  if(siswa.length===0){document.getElementById('rekapTable').innerHTML='<p style="color:#6b7280;font-size:13px">Tidak ada data.</p>';return}
   const filtered=presensi.filter(p=>p.tanggal.startsWith(bulan));
   let html='<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>Kelas</th><th>Hadir</th><th>Sakit</th><th>Izin</th><th>Alpha</th><th>%</th></tr>';
   siswa.forEach((s,i)=>{
@@ -484,7 +547,7 @@ function loadRekap(){
     const total=h+sk+iz+al;
     const persen=total?Math.round(h/total*100):0;
     const k=kelas.find(x=>x.id===s.kelas);
-    html+=`<tr><td>${i+1}</td><td>${s.nama}</td><td>${k?k.nama:'-'}</td><td>${h}</td><td>${sk}</td><td>${iz}</td><td>${al}</td><td>${persen}%</td></tr>`;
+    html+='<tr><td>'+(i+1)+'</td><td>'+s.nama+'</td><td>'+(k?k.nama:'-')+'</td><td>'+h+'</td><td>'+sk+'</td><td>'+iz+'</td><td>'+al+'</td><td>'+persen+'%</td></tr>';
   });
   html+='</table></div>';
   document.getElementById('rekapTable').innerHTML=html;
@@ -493,10 +556,10 @@ function exportRekapPDF(){
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF();
   const settings=DB.get('settings')||{};
-  doc.setFontSize(14);doc.text(settings.namaSekolah||'Madrasah',14,20);
-  doc.setFontSize(11);doc.text('Rekap Presensi - '+document.getElementById('rekapBulan').value,14,28);
-  const kelasId=document.getElementById('rekapKelas').value;
   const bulan=document.getElementById('rekapBulan').value;
+  doc.setFontSize(14);doc.text(settings.namaSekolah||'Madrasah',14,20);
+  doc.setFontSize(11);doc.text('Rekap Presensi - '+bulan,14,28);
+  const kelasId=document.getElementById('rekapKelas').value;
   let siswa=DB.get('siswa')||[];
   const kelas=DB.get('kelas')||[];
   const presensi=DB.get('presensi')||[];
@@ -512,6 +575,7 @@ function exportRekapPDF(){
     const k=kelas.find(x=>x.id===s.kelas);
     return[i+1,s.nama,k?k.nama:'-',h,sk,iz,al,persen+'%'];
   });
+  if(rows.length===0){alert('Tidak ada data untuk di-export');return}
   doc.autoTable({startY:34,head:[['No','Nama','Kelas','Hadir','Sakit','Izin','Alpha','%']],body:rows,styles:{fontSize:9}});
   doc.save('rekap-presensi-'+bulan+'.pdf');
 }
@@ -520,25 +584,33 @@ function exportRekapPDF(){
 function renderPengaturan(){
   const settings=DB.get('settings')||{};
   const cred=DB.get('credentials')||{};
-  return `<div class="card">
-  <h3 style="margin:0 0 16px;font-size:15px;color:#15803d">Profil Madrasah</h3>
-  <label style="font-size:13px;color:#374151">Nama Madrasah</label>
-  <input id="setNama" value="${settings.namaSekolah||''}" style="margin-bottom:10px">
-  <label style="font-size:13px;color:#374151">Alamat</label>
-  <input id="setAlamat" value="${settings.alamat||''}" style="margin-bottom:16px">
-  <button class="btn btn-primary" onclick="saveSettings()">💾 Simpan Profil</button>
-  <hr style="margin:20px 0;border-color:#e5e7eb">
-  <h3 style="margin:0 0 16px;font-size:15px;color:#15803d">Ubah Password</h3>
-  <label style="font-size:13px;color:#374151">Username</label>
-  <input id="setUser" value="${cred.username||''}" style="margin-bottom:10px">
-  <label style="font-size:13px;color:#374151">Password Baru</label>
-  <input type="password" id="setPass" placeholder="Kosongkan jika tidak diubah" style="margin-bottom:16px">
-  <button class="btn btn-primary" onclick="saveCredentials()">🔑 Ubah Login</button>
-  <hr style="margin:20px 0;border-color:#e5e7eb">
-  <h3 style="margin:0 0 16px;font-size:15px;color:#dc2626">Reset Data</h3>
-  <p style="font-size:13px;color:#6b7280;margin-bottom:10px">Hapus semua data dan kembalikan ke data awal.</p>
-  <button class="btn btn-danger" onclick="resetData()">🗑️ Reset Semua Data</button>
-  </div>`;
+  const lisensi=DB.get('lisensi')||{};
+  return '<div class="card">'+
+  '<div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:12px;margin-bottom:20px">'+
+    '<h4 style="margin:0 0 8px;font-size:14px;color:#166534">🔑 Info Lisensi</h4>'+
+    '<p style="font-size:13px;margin:2px 0;color:#374151">Madrasah: <strong>'+(lisensi.madrasah||'-')+'</strong></p>'+
+    '<p style="font-size:13px;margin:2px 0;color:#374151">Kode: <strong>'+(lisensi.kode||'-')+'</strong></p>'+
+    '<p style="font-size:13px;margin:2px 0;color:#374151">Berlaku s/d: <strong>'+(lisensi.berlaku||'-')+'</strong></p>'+
+    '<p style="font-size:13px;margin:2px 0;color:#374151">Tanggal Aktivasi: <strong>'+(lisensi.aktivasiTanggal||'-')+'</strong></p>'+
+  '</div>'+
+  '<h3 style="margin:0 0 16px;font-size:15px;color:#15803d">Profil Madrasah</h3>'+
+  '<label style="font-size:13px;color:#374151">Nama Madrasah</label>'+
+  '<input id="setNama" value="'+(settings.namaSekolah||'')+'" style="margin-bottom:10px">'+
+  '<label style="font-size:13px;color:#374151">Alamat</label>'+
+  '<input id="setAlamat" value="'+(settings.alamat||'')+'" style="margin-bottom:16px">'+
+  '<button class="btn btn-primary" onclick="saveSettings()">💾 Simpan Profil</button>'+
+  '<hr style="margin:20px 0;border-color:#e5e7eb">'+
+  '<h3 style="margin:0 0 16px;font-size:15px;color:#15803d">Ubah Password</h3>'+
+  '<label style="font-size:13px;color:#374151">Username</label>'+
+  '<input id="setUser" value="'+(cred.username||'')+'" style="margin-bottom:10px">'+
+  '<label style="font-size:13px;color:#374151">Password Baru</label>'+
+  '<input type="password" id="setPass" placeholder="Kosongkan jika tidak diubah" style="margin-bottom:16px">'+
+  '<button class="btn btn-primary" onclick="saveCredentials()">🔑 Ubah Login</button>'+
+  '<hr style="margin:20px 0;border-color:#e5e7eb">'+
+  '<h3 style="margin:0 0 16px;font-size:15px;color:#dc2626">Reset Data</h3>'+
+  '<p style="font-size:13px;color:#6b7280;margin-bottom:10px">Hapus semua data presensi dan siswa. Lisensi tetap aktif.</p>'+
+  '<button class="btn btn-danger" onclick="resetData()">🗑️ Reset Data Presensi & Siswa</button>'+
+  '</div>';
 }
 function saveSettings(){
   const settings=DB.get('settings')||{};
@@ -559,26 +631,31 @@ function saveCredentials(){
   alert('Login berhasil diubah!');
 }
 function resetData(){
-  if(!confirm('YAKIN hapus semua data? Tidak bisa dikembalikan!'))return;
-  localStorage.clear();initData();render();alert('Data berhasil direset.');
+  if(!confirm('YAKIN hapus semua data siswa dan presensi? Lisensi tetap aktif.'))return;
+  DB.set('siswa',[]);DB.set('presensi',[]);
+  render();alert('Data berhasil direset.');
 }
 
-// ===== INIT =====
+// ===== INIT APP =====
 function initApp(){
   const settings=DB.get('settings')||{};
   document.getElementById('appTitle').textContent=settings.namaSekolah||'Madrasah Hadir Digital';
-  // responsive
   if(window.innerWidth<=768){document.getElementById('hamburger').style.display='block'}
   window.addEventListener('resize',()=>{
     document.getElementById('hamburger').style.display=window.innerWidth<=768?'block':'none';
     if(window.innerWidth>768)document.getElementById('sidebar').classList.remove('show-mobile');
   });
   nav('dashboard');
-  setTimeout(()=>{if(currentPage==='presensi')loadPresensiKelas()},100);
 }
 
-// Boot
-initData();checkAuth();
+// ===== BOOT =====
+function boot(){
+  initData();
+  if(checkLisensi()){
+    checkAuth();
+  }
+}
+boot();
 </script>
 </body>
 </html>
