@@ -55,6 +55,8 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <p style="color:#6b7280;font-size:13px;margin-bottom:8px">Madrasah Hadir Digital</p>
 <p style="color:#374151;font-size:12px;margin-bottom:16px">Masukkan kode aktivasi yang diberikan oleh Pengawas Madrasah untuk menggunakan aplikasi ini.</p>
 <input type="text" id="kodeAktivasi" placeholder="Contoh: MHD-ALHIKMAH-2026" style="margin-bottom:12px;text-transform:uppercase">
+<input type="text" id="aktivasiNamaMadrasah" placeholder="Nama Madrasah Lengkap" style="margin-bottom:12px">
+<input type="text" id="aktivasiAlamat" placeholder="Alamat Madrasah Lengkap" style="margin-bottom:12px">
 <button class="btn btn-primary" style="width:100%" onclick="doAktivasi()">Aktivasi</button>
 <p id="aktivasiError" style="color:#dc2626;font-size:12px;margin-top:8px;display:none"></p>
 <p id="aktivasiInfo" style="color:#6b7280;font-size:11px;margin-top:16px">Hubungi Subariyanto, di No. Hp. 082330647698 untuk mendapatkan Kode Aktivasi</p>
@@ -171,17 +173,23 @@ function showAktivasi(msg){
 
 function doAktivasi(){
   const input=document.getElementById('kodeAktivasi').value.trim().toUpperCase();
+  const namaMadrasah=document.getElementById('aktivasiNamaMadrasah').value.trim();
+  const alamat=document.getElementById('aktivasiAlamat').value.trim();
   const errEl=document.getElementById('aktivasiError');
   if(!input){errEl.textContent='Masukkan kode aktivasi';errEl.style.display='block';return}
+  if(!namaMadrasah){errEl.textContent='Masukkan nama madrasah lengkap';errEl.style.display='block';return}
+  if(!alamat){errEl.textContent='Masukkan alamat madrasah lengkap';errEl.style.display='block';return}
   const found=LISENSI_DB.find(l=>l.kode===input);
-  if(!found){errEl.textContent='Kode aktivasi tidak valid. Periksa kembali atau hubungi Pengawas.';errEl.style.display='block';return}
+  if(!found){errEl.textContent='Kode aktivasi tidak valid. Periksa kembali atau hubungi Subariyanto.';errEl.style.display='block';return}
   const now=new Date().toISOString().slice(0,10);
-  if(found.berlaku<now){errEl.textContent='Kode ini sudah kadaluarsa (berlaku s/d '+found.berlaku+'). Hubungi Pengawas untuk kode baru.';errEl.style.display='block';return}
-  // Simpan lisensi
-  DB.set('lisensi',{kode:found.kode,madrasah:found.madrasah,berlaku:found.berlaku,aktivasiTanggal:now});
-  // Set nama madrasah otomatis
-  const settings=DB.get('settings')||{namaSekolah:'',alamat:''};
-  settings.namaSekolah=found.madrasah;
+  if(found.berlaku<now){errEl.textContent='Kode ini sudah kadaluarsa (berlaku s/d '+found.berlaku+'). Hubungi Subariyanto untuk kode baru.';errEl.style.display='block';return}
+  // Simpan lisensi dengan nama dan alamat dari user
+  DB.set('lisensi',{kode:found.kode,madrasah:namaMadrasah,alamat:alamat,berlaku:found.berlaku,aktivasiTanggal:now});
+  // Set nama madrasah dan alamat (terkunci)
+  const settings=DB.get('settings')||{};
+  settings.namaSekolah=namaMadrasah;
+  settings.alamat=alamat;
+  settings.profilTerkunci=true;
   DB.set('settings',settings);
   document.getElementById('aktivasiScreen').style.display='none';
   errEl.style.display='none';
@@ -762,11 +770,12 @@ function renderPengaturan(){
     '<p style="font-size:13px;margin:2px 0;color:#374151">Tanggal Aktivasi: <strong>'+(lisensi.aktivasiTanggal||'-')+'</strong></p>'+
   '</div>'+
   '<h3 style="margin:0 0 16px;font-size:15px;color:#15803d">Profil Madrasah</h3>'+
+  (settings.profilTerkunci?'<div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#92400e">\u{1F512} Profil madrasah terkunci sesuai data saat aktivasi.</div>':'')+
   '<label style="font-size:13px;color:#374151">Nama Madrasah</label>'+
-  '<input id="setNama" value="'+(settings.namaSekolah||'')+'" style="margin-bottom:10px">'+
+  '<input id="setNama" value="'+(settings.namaSekolah||'')+'" style="margin-bottom:10px" '+(settings.profilTerkunci?'disabled':'')+'>'+ 
   '<label style="font-size:13px;color:#374151">Alamat</label>'+
-  '<input id="setAlamat" value="'+(settings.alamat||'')+'" style="margin-bottom:16px">'+
-  '<button class="btn btn-primary" onclick="saveSettings()">\u{1F4BE} Simpan Profil</button>'+
+  '<input id="setAlamat" value="'+(settings.alamat||'')+'" style="margin-bottom:16px" '+(settings.profilTerkunci?'disabled':'')+'>'+
+  '<button class="btn btn-primary" onclick="saveSettings()" '+(settings.profilTerkunci?'disabled':'')+'>\u{1F4BE} Simpan Profil</button>'+
   '<hr style="margin:20px 0;border-color:#e5e7eb">'+
   '<h3 style="margin:0 0 16px;font-size:15px;color:#15803d">\u{1F4F1} Pengaturan WhatsApp</h3>'+
   '<label style="font-size:13px;color:#374151">Mode Pengiriman</label>'+
@@ -801,6 +810,7 @@ function renderPengaturan(){
 }
 function saveSettings(){
   const settings=DB.get('settings')||{};
+  if(settings.profilTerkunci){toast('Profil madrasah terkunci dan tidak bisa diubah','error');return}
   settings.namaSekolah=document.getElementById('setNama').value.trim();
   settings.alamat=document.getElementById('setAlamat').value.trim();
   DB.set('settings',settings);
