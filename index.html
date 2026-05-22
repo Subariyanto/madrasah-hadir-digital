@@ -833,6 +833,215 @@ function resetData(){
   render();toast('Data berhasil direset.');
 }
 
+// ===== DATA GURU =====
+function renderGuru(){
+  const teachers=DB.get('teachers')||[];
+  const search=document.getElementById('searchGuru')?document.getElementById('searchGuru').value.toLowerCase():'';
+  const filtered=search?teachers.filter(t=>t.nama.toLowerCase().includes(search)||t.nip.toLowerCase().includes(search)):teachers;
+  return '<div class="card">'+
+  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'+
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-size:13px;color:#6b7280">Total: '+teachers.length+' guru</span>'+
+    '<input id="searchGuru" placeholder="Cari guru..." value="'+search+'" oninput="render()" style="max-width:180px;padding:6px 10px"></div>'+
+    '<button class="btn btn-primary" onclick="showAddGuru()">+ Tambah Guru</button>'+
+  '</div>'+
+  (filtered.length===0?'<p style="color:#6b7280;font-size:13px">Belum ada data guru.</p>':
+  '<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>NIP</th><th>Jabatan</th><th>No HP</th><th>Status</th><th>Aksi</th></tr>'+
+  filtered.map((t,i)=>{
+    return '<tr><td>'+(i+1)+'</td><td>'+t.nama+'</td><td>'+t.nip+'</td><td>'+(t.jabatan||'-')+'</td><td>'+(t.noHp||'-')+'</td><td>'+(t.statusAktif?'<span class="badge badge-hadir">Aktif</span>':'<span class="badge badge-alpha">Nonaktif</span>')+'</td><td>'+
+    '<button class="btn btn-secondary" onclick="editGuru(\''+t.id+'\')" style="padding:4px 8px;font-size:12px">\u270F\uFE0F</button> '+
+    '<button class="btn btn-danger" onclick="hapusGuru(\''+t.id+'\')" style="padding:4px 8px;font-size:12px">\u{1F5D1}\uFE0F</button></td></tr>';
+  }).join('')+'</table></div>')+'</div>';
+}
+function showAddGuru(editId){
+  const teachers=DB.get('teachers')||[];
+  const t=editId?teachers.find(x=>x.id===editId):null;
+  const h='<div class="overlay" onclick="if(event.target===this)this.remove()"><div class="modal">'+
+  '<h3 style="margin:0 0 16px;color:#15803d">'+(t?'Edit':'Tambah')+' Guru</h3>'+
+  '<label style="font-size:13px;color:#374151">Nama</label>'+
+  '<input id="fGNama" value="'+(t?t.nama:'')+'" style="margin-bottom:10px">'+
+  '<label style="font-size:13px;color:#374151">NIP/NUPTK/NPK</label>'+
+  '<input id="fGNip" value="'+(t?t.nip:'')+'" style="margin-bottom:10px">'+
+  '<label style="font-size:13px;color:#374151">Jabatan</label>'+
+  '<input id="fGJabatan" value="'+(t?t.jabatan||'':'')+'" style="margin-bottom:10px">'+
+  '<label style="font-size:13px;color:#374151">No HP/WA</label>'+
+  '<input id="fGHp" value="'+(t?t.noHp||'':'')+'" style="margin-bottom:10px">'+
+  '<label style="font-size:13px;color:#374151"><input type="checkbox" id="fGAktif" '+(t?(t.statusAktif?'checked':''):'checked')+'> Status Aktif</label>'+
+  '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">'+
+    '<button class="btn btn-secondary" onclick="this.closest(\'.overlay\').remove()">Batal</button>'+
+    '<button class="btn btn-primary" onclick="saveGuru(\''+(editId||'')+'\')">Simpan</button>'+
+  '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend',h);
+}
+function editGuru(id){showAddGuru(id)}
+function saveGuru(editId){
+  const nama=document.getElementById('fGNama').value.trim();
+  const nip=document.getElementById('fGNip').value.trim();
+  const jabatan=document.getElementById('fGJabatan').value.trim();
+  const noHp=document.getElementById('fGHp').value.trim();
+  const statusAktif=document.getElementById('fGAktif').checked;
+  if(!nama){toast('Nama guru harus diisi','error');return}
+  let teachers=DB.get('teachers')||[];
+  if(editId){teachers=teachers.map(t=>t.id===editId?{...t,nama,nip,jabatan,noHp,statusAktif}:t)}
+  else{teachers.push({id:'g'+Date.now(),nama,nip,jabatan,noHp,statusAktif})}
+  DB.set('teachers',teachers);
+  document.querySelector('.overlay').remove();render();
+  toast(editId?'Data guru diupdate':'Guru berhasil ditambahkan');
+}
+function hapusGuru(id){
+  if(!confirmDialog('Hapus guru ini?'))return;
+  DB.set('teachers',(DB.get('teachers')||[]).filter(t=>t.id!==id));render();
+  toast('Guru berhasil dihapus');
+}
+
+// ===== PRESENSI GURU =====
+function renderPresensiGuru(){
+  const today=new Date().toISOString().slice(0,10);
+  return '<div class="card">'+
+  '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">'+
+    '<input type="date" id="selTanggalGuru" value="'+today+'" onchange="loadPresensiGuru()" style="max-width:180px">'+
+    '<button class="btn btn-primary" onclick="simpanPresensiGuru()">\u{1F4BE} Simpan</button>'+
+  '</div>'+
+  '<div id="presensiGuruList"></div></div>';
+}
+function loadPresensiGuru(){
+  const tanggal=document.getElementById('selTanggalGuru')?document.getElementById('selTanggalGuru').value:'';
+  if(!tanggal)return;
+  const teachers=(DB.get('teachers')||[]).filter(t=>t.statusAktif!==false);
+  const att=DB.get('teacherAttendance')||[];
+  if(teachers.length===0){document.getElementById('presensiGuruList').innerHTML='<p style="color:#6b7280;font-size:13px">Belum ada data guru. Tambahkan guru terlebih dahulu.</p>';return}
+  let h2='<table><tr><th>No</th><th>Nama</th><th>NIP</th><th>Status</th><th>Keterangan</th></tr>';
+  teachers.forEach((t,i)=>{
+    const existing=att.find(a=>a.guruId===t.id&&a.tanggal===tanggal);
+    const st=existing?existing.status:'hadir';
+    const ket=existing?existing.keterangan||'':'';
+    h2+='<tr><td>'+(i+1)+'</td><td>'+t.nama+'</td><td>'+t.nip+'</td><td>'+
+    '<select id="stg-'+t.id+'" style="max-width:120px">'+
+      '<option value="hadir" '+(st==='hadir'?'selected':'')+'>Hadir</option>'+
+      '<option value="terlambat" '+(st==='terlambat'?'selected':'')+'>Terlambat</option>'+
+      '<option value="izin" '+(st==='izin'?'selected':'')+'>Izin</option>'+
+      '<option value="sakit" '+(st==='sakit'?'selected':'')+'>Sakit</option>'+
+      '<option value="dinas" '+(st==='dinas'?'selected':'')+'>Dinas Luar</option>'+
+      '<option value="alpha" '+(st==='alpha'?'selected':'')+'>Alpha</option>'+
+    '</select></td><td><input id="ketg-'+t.id+'" value="'+ket+'" placeholder="Keterangan" style="max-width:150px;padding:4px 8px"></td></tr>';
+  });
+  h2+='</table>';
+  document.getElementById('presensiGuruList').innerHTML=h2;
+}
+function simpanPresensiGuru(){
+  const tanggal=document.getElementById('selTanggalGuru').value;
+  const teachers=(DB.get('teachers')||[]).filter(t=>t.statusAktif!==false);
+  if(teachers.length===0){toast('Tidak ada guru','error');return}
+  let att=DB.get('teacherAttendance')||[];
+  teachers.forEach(t=>{
+    const el=document.getElementById('stg-'+t.id);
+    const ketEl=document.getElementById('ketg-'+t.id);
+    if(!el)return;
+    const status=el.value;
+    const keterangan=ketEl?ketEl.value:'';
+    const waktu=(status==='hadir'||status==='terlambat')?new Date().toLocaleTimeString('id-ID'):'';
+    const idx=att.findIndex(a=>a.guruId===t.id&&a.tanggal===tanggal);
+    if(idx>=0){att[idx]={...att[idx],status,waktu,keterangan}}
+    else{att.push({guruId:t.id,tanggal,status,waktu,keterangan})}
+  });
+  DB.set('teacherAttendance',att);
+  toast('Presensi guru berhasil disimpan!');
+}
+
+// ===== REKAP PRESENSI GURU =====
+function renderRekapGuru(){
+  const today=new Date().toISOString().slice(0,10);
+  const month=today.slice(0,7);
+  return '<div class="card no-print">'+
+  '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center">'+
+    '<input type="date" id="rekapGuruStart" value="'+month+'-01" style="max-width:160px">'+
+    '<span>s/d</span>'+
+    '<input type="date" id="rekapGuruEnd" value="'+today+'" style="max-width:160px">'+
+    '<select id="rekapGuruFilter" style="max-width:150px"><option value="all">Semua Status</option><option value="hadir">Hadir</option><option value="terlambat">Terlambat</option><option value="izin">Izin</option><option value="sakit">Sakit</option><option value="dinas">Dinas Luar</option><option value="alpha">Alpha</option></select>'+
+    '<button class="btn btn-primary" onclick="loadRekapGuru()">\u{1F50D} Tampilkan</button>'+
+    '<button class="btn btn-secondary" onclick="cetakRekapGuru()">\u{1F5A8}\uFE0F Cetak</button>'+
+    '<button class="btn btn-secondary" onclick="exportRekapGuruCSV()">\u{1F4C4} CSV</button>'+
+  '</div></div>'+
+  '<div id="rekapGuruTable" class="print-area"></div>';
+}
+function loadRekapGuru(){
+  const start=document.getElementById('rekapGuruStart').value;
+  const end=document.getElementById('rekapGuruEnd').value;
+  const statusFilter=document.getElementById('rekapGuruFilter').value;
+  const teachers=DB.get('teachers')||[];
+  const att=DB.get('teacherAttendance')||[];
+  let filtered=att.filter(a=>a.tanggal>=start&&a.tanggal<=end);
+  if(statusFilter!=='all')filtered=filtered.filter(a=>a.status===statusFilter);
+  const settings=DB.get('settings')||{};
+  let h3='<div style="text-align:center;margin-bottom:16px"><h3 style="margin:0">REKAP PRESENSI GURU</h3><p style="margin:4px 0">'+(settings.namaSekolah||'Madrasah')+'</p><p style="margin:0;font-size:12px">Periode: '+start+' s/d '+end+'</p></div>';
+  h3+='<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>NIP</th><th>Tanggal</th><th>Jam</th><th>Status</th><th>Keterangan</th></tr>';
+  if(filtered.length===0){h3+='<tr><td colspan="7" style="text-align:center;color:#6b7280">Tidak ada data</td></tr>'}
+  filtered.forEach((a,i)=>{
+    const t=teachers.find(x=>x.id===a.guruId);
+    h3+='<tr><td>'+(i+1)+'</td><td>'+(t?t.nama:'-')+'</td><td>'+(t?t.nip:'-')+'</td><td>'+a.tanggal+'</td><td>'+(a.waktu||'-')+'</td><td><span class="badge badge-'+(a.status==='hadir'||a.status==='terlambat'?'hadir':a.status==='sakit'?'sakit':a.status==='izin'||a.status==='dinas'?'izin':'alpha')+'">'+a.status+'</span></td><td>'+(a.keterangan||'-')+'</td></tr>';
+  });
+  h3+='</table></div>';
+  h3+='<div style="margin-top:40px;display:flex;justify-content:space-between"><div style="text-align:center"><p>Mengetahui,</p><p>Kepala Madrasah</p><br><br><br><p>_________________</p></div><div style="text-align:center"><p>&nbsp;</p><p>Operator/Admin</p><br><br><br><p>_________________</p></div></div>';
+  document.getElementById('rekapGuruTable').innerHTML=h3;
+}
+function cetakRekapGuru(){loadRekapGuru();setTimeout(function(){window.print()},200)}
+function exportRekapGuruCSV(){
+  const start=document.getElementById('rekapGuruStart').value;
+  const end=document.getElementById('rekapGuruEnd').value;
+  const statusFilter=document.getElementById('rekapGuruFilter').value;
+  const teachers=DB.get('teachers')||[];
+  const att=DB.get('teacherAttendance')||[];
+  let filtered=att.filter(a=>a.tanggal>=start&&a.tanggal<=end);
+  if(statusFilter!=='all')filtered=filtered.filter(a=>a.status===statusFilter);
+  let csv='No,Nama,NIP,Tanggal,Jam,Status,Keterangan\n';
+  filtered.forEach((a,i)=>{
+    const t=teachers.find(x=>x.id===a.guruId);
+    csv+=(i+1)+','+(t?t.nama:'-')+','+(t?t.nip:'-')+','+a.tanggal+','+(a.waktu||'-')+','+a.status+','+(a.keterangan||'-')+'\n';
+  });
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='rekap-guru-'+start+'.csv';a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV berhasil diexport');
+}
+
+// ===== CETAK QR GURU =====
+function renderKartuGuru(){
+  return '<div class="card no-print">'+
+  '<div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
+    '<select id="kartuGuruSize" style="max-width:150px"><option value="small">Kecil</option><option value="medium" selected>Sedang</option><option value="large">Besar</option></select>'+
+    '<select id="kartuGuruMode" style="max-width:180px"><option value="full">Kartu Lengkap</option><option value="qronly">QR Saja</option></select>'+
+    '<button class="btn btn-primary" onclick="generateQRGuru()">\u{1F504} Generate</button>'+
+    '<button class="btn btn-secondary" onclick="window.print()">\u{1F5A8}\uFE0F Cetak</button>'+
+  '</div></div>'+
+  '<div id="qrGuruCards" class="print-area" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"></div>';
+}
+function generateQRGuru(){
+  const teachers=(DB.get('teachers')||[]).filter(t=>t.statusAktif!==false);
+  const container=document.getElementById('qrGuruCards');
+  if(!container)return;
+  const size=document.getElementById('kartuGuruSize')?document.getElementById('kartuGuruSize').value:'medium';
+  const mode=document.getElementById('kartuGuruMode')?document.getElementById('kartuGuruMode').value:'full';
+  const qrSize=size==='small'?80:size==='large'?150:100;
+  if(teachers.length===0){container.innerHTML='<p style="color:#6b7280;font-size:13px">Tidak ada guru.</p>';return}
+  const settings=DB.get('settings')||{};
+  container.innerHTML=teachers.map(t=>{
+    if(mode==='qronly'){
+      return '<div style="border:1px solid #d1d5db;border-radius:8px;padding:12px;text-align:center;background:#fff">'+
+      '<div id="qrg-'+t.id+'" style="display:inline-block;margin:8px 0"></div>'+
+      '<p style="font-size:11px;color:#6b7280;margin:4px 0 0">'+t.nama+'</p></div>';
+    }
+    return '<div style="border:1px solid #d1d5db;border-radius:8px;padding:12px;text-align:center;background:#fff">'+
+    '<p style="font-size:11px;color:#15803d;font-weight:600;margin:0 0 4px">'+(settings.namaSekolah||'Madrasah')+'</p>'+
+    '<div id="qrg-'+t.id+'" style="display:inline-block;margin:8px 0"></div>'+
+    '<p style="font-size:13px;font-weight:600;margin:4px 0 0">'+t.nama+'</p>'+
+    '<p style="font-size:11px;color:#6b7280;margin:2px 0">'+t.nip+' | '+(t.jabatan||'-')+'</p></div>';
+  }).join('');
+  teachers.forEach(t=>{
+    const el=document.getElementById('qrg-'+t.id);
+    if(el){el.innerHTML='';new QRCode(el,{text:t.id,width:qrSize,height:qrSize})}
+  });
+}
+
 // ===== INIT APP =====
 function initApp(){
   const settings=DB.get('settings')||{};
