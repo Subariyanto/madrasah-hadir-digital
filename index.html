@@ -12,7 +12,7 @@
 <script>tailwind.config={theme:{extend:{colors:{primary:'#16a34a',primaryDark:'#15803d',primaryLight:'#bbf7d0'}}}}</script>
 <style>
 body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f0fdf4}
-.sidebar{width:260px;background:#15803d;min-height:100vh;position:fixed;left:0;top:0;z-index:50;transition:transform .3s}
+.sidebar{width:260px;background:#15803d;min-height:100vh;position:fixed;left:0;top:0;z-index:50;transition:transform .3s;overflow-y:auto}
 .sidebar a,.sidebar button{display:flex;align-items:center;gap:8px;padding:10px 16px;color:#fff;text-decoration:none;border:none;background:none;width:100%;text-align:left;cursor:pointer;font-size:14px;border-radius:6px;margin:2px 8px}
 .sidebar a:hover,.sidebar button:hover{background:rgba(255,255,255,.15)}
 .sidebar a.active{background:rgba(255,255,255,.25);font-weight:600}
@@ -49,7 +49,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 </head>
 <body>
 <!-- AKTIVASI SCREEN -->
-<div id="aktivasiScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:300;display:flex;align-items:center;justify-content:center">
+<div id="aktivasiScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:300;align-items:center;justify-content:center">
 <div class="card" style="max-width:400px;width:90%;text-align:center">
 <h2 style="color:#15803d;margin-bottom:4px">🔑 Aktivasi Aplikasi</h2>
 <p style="color:#6b7280;font-size:13px;margin-bottom:8px">Madrasah Hadir Digital</p>
@@ -62,7 +62,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 </div>
 
 <!-- LOGIN SCREEN -->
-<div id="loginScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:200;display:flex;align-items:center;justify-content:center">
+<div id="loginScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:200;align-items:center;justify-content:center">
 <div class="card" style="max-width:360px;width:90%;text-align:center">
 <h2 style="color:#15803d;margin-bottom:4px">🕌 <span id="loginTitle">Madrasah Hadir Digital</span></h2>
 <p style="color:#6b7280;font-size:13px;margin-bottom:20px">Sistem Presensi Digital</p>
