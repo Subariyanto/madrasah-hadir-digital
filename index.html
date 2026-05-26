@@ -55,6 +55,34 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 .toast-warning{background:#d97706}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 @media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:absolute;left:0;top:0;width:100%}.no-print{display:none !important}.sidebar{display:none !important}.main{margin-left:0 !important}}
+/* === Home grid (Android-style launcher) === */
+.menu-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:8px}
+@media(min-width:540px){.menu-grid{grid-template-columns:repeat(5,1fr);gap:16px}}
+@media(min-width:900px){.menu-grid{grid-template-columns:repeat(6,1fr)}}
+.menu-tile{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:14px 8px;text-align:center;cursor:pointer;transition:transform .08s ease, box-shadow .15s ease;text-decoration:none;color:#15803d;display:flex;flex-direction:column;align-items:center;gap:8px;user-select:none}
+.menu-tile:hover{box-shadow:0 4px 12px rgba(21,128,61,.15);transform:translateY(-2px)}
+.menu-tile:active{transform:scale(.96)}
+.menu-tile .ico{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:26px;background:linear-gradient(135deg,#bbf7d0,#86efac);color:#15803d;box-shadow:inset 0 -2px 0 rgba(0,0,0,.05)}
+.menu-tile .lbl{font-size:11.5px;line-height:1.25;color:#374151;font-weight:500;min-height:2.4em;display:flex;align-items:center;justify-content:center}
+.menu-tile .badge-dot{position:absolute;top:8px;right:8px;background:#dc2626;color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;font-weight:600}
+.menu-tile-wrap{position:relative}
+/* Color variants per tile */
+.tile-blue .ico{background:linear-gradient(135deg,#dbeafe,#93c5fd);color:#1d4ed8}
+.tile-amber .ico{background:linear-gradient(135deg,#fef3c7,#fcd34d);color:#92400e}
+.tile-rose .ico{background:linear-gradient(135deg,#fee2e2,#fca5a5);color:#991b1b}
+.tile-violet .ico{background:linear-gradient(135deg,#ede9fe,#c4b5fd);color:#5b21b6}
+.tile-sky .ico{background:linear-gradient(135deg,#e0f2fe,#7dd3fc);color:#075985}
+.tile-orange .ico{background:linear-gradient(135deg,#ffedd5,#fdba74);color:#9a3412}
+.tile-slate .ico{background:linear-gradient(135deg,#e2e8f0,#94a3b8);color:#334155}
+.home-greet{padding:16px 4px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.home-greet h2{margin:0;font-size:18px;color:#15803d}
+.home-greet p{margin:2px 0 0;font-size:12px;color:#6b7280}
+.home-section-title{font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin:18px 4px 6px;font-weight:600}
+.home-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:6px 0 8px}
+.home-quick .qcard{background:#fff;border-radius:14px;padding:12px;border:1px solid #e5e7eb;display:flex;align-items:center;gap:10px}
+.home-quick .qcard .qicon{width:36px;height:36px;border-radius:10px;background:#bbf7d0;color:#15803d;display:flex;align-items:center;justify-content:center;font-size:18px}
+.home-quick .qcard .qval{font-size:18px;font-weight:700;color:#15803d;line-height:1}
+.home-quick .qcard .qlbl{font-size:11px;color:#6b7280;margin-top:2px}
 </style>
 </head>
 <body>
@@ -92,7 +120,8 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <p style="color:#bbf7d0;font-size:11px;margin:4px 0 0">Sistem Presensi</p>
 </div>
 <nav style="padding:8px 0">
-<a href="#" onclick="nav('dashboard')" id="nav-dashboard" class="active">📊 Dashboard</a>
+<a href="#" onclick="nav('home')" id="nav-home" class="active">🏠 Beranda</a>
+<a href="#" onclick="nav('dashboard')" id="nav-dashboard">📊 Dashboard</a>
 <a href="#" onclick="nav('presensi')" id="nav-presensi">✅ Presensi Manual</a>
 <a href="#" onclick="nav('scan')" id="nav-scan">📷 Scan QR</a>
 <a href="#" onclick="nav('siswa')" id="nav-siswa">👨‍🎓 Data Siswa</a>
@@ -254,7 +283,7 @@ function nav(page){
   currentPage=page;
   document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
   const el=document.getElementById('nav-'+page);if(el)el.classList.add('active');
-  const titles={dashboard:'Dashboard',presensi:'Presensi Manual',scan:'Scan QR',siswa:'Data Siswa',kelas:'Data Kelas',kartu:'Cetak Kartu QR',rekap:'Rekap Presensi',guru:'Data Guru',presensiGuru:'Presensi Guru',rekapGuru:'Rekap Presensi Guru',kartuGuru:'Cetak QR Guru',pengaturan:'Pengaturan'};
+  const titles={home:'Beranda',dashboard:'Dashboard',presensi:'Presensi Manual',scan:'Scan QR',siswa:'Data Siswa',kelas:'Data Kelas',kartu:'Cetak Kartu QR',rekap:'Rekap Presensi',guru:'Data Guru',presensiGuru:'Presensi Guru',rekapGuru:'Rekap Presensi Guru',kartuGuru:'Cetak QR Guru',pengaturan:'Pengaturan'};
   document.getElementById('pageTitle').textContent=titles[page]||page;
   render();closeSidebarMobile();
 }
@@ -265,6 +294,7 @@ function closeSidebarMobile(){document.getElementById('sidebar').classList.remov
 function render(){
   const c=document.getElementById('pageContent');
   switch(currentPage){
+    case'home':c.innerHTML=renderHome();break;
     case'dashboard':c.innerHTML=renderDashboard();break;
     case'presensi':c.innerHTML=renderPresensi();setTimeout(loadPresensiKelas,50);break;
     case'scan':c.innerHTML=renderScan();setTimeout(initScanner,100);break;
@@ -278,6 +308,48 @@ function render(){
     case'kartuGuru':c.innerHTML=renderKartuGuru();setTimeout(generateQRGuru,100);break;
     case'pengaturan':c.innerHTML=renderPengaturan();break;
   }
+}
+
+// ===== HOME (Android-style launcher) =====
+function renderHome(){
+  const siswa=DB.get('siswa')||[];
+  const teachers=DB.get('teachers')||[];
+  const presensi=DB.get('presensi')||[];
+  const teacherAtt=DB.get('teacherAttendance')||[];
+  const today=new Date().toISOString().slice(0,10);
+  const todayP=presensi.filter(p=>p.tanggal===today);
+  const todayG=teacherAtt.filter(p=>p.tanggal===today);
+  const lisensi=DB.get('lisensi')||{};
+  const settings=DB.get('settings')||{};
+  const namaApp=settings.namaSekolah||lisensi.madrasah||'Madrasah Hadir Digital';
+  const hour=new Date().getHours();
+  const greet=hour<11?'Selamat pagi':hour<15?'Selamat siang':hour<18?'Selamat sore':'Selamat malam';
+  const tiles=[
+    {p:'presensi',ic:'\u{2705}',lbl:'Presensi Manual',cls:'tile-blue'},
+    {p:'scan',ic:'\u{1F4F7}',lbl:'Scan QR Siswa',cls:'tile-violet'},
+    {p:'presensiGuru',ic:'\u{1F44B}',lbl:'Presensi Guru',cls:'tile-amber'},
+    {p:'siswa',ic:'\u{1F468}\u200D\u{1F393}',lbl:'Data Siswa'},
+    {p:'kelas',ic:'\u{1F3EB}',lbl:'Data Kelas',cls:'tile-sky'},
+    {p:'guru',ic:'\u{1F468}\u200D\u{1F3EB}',lbl:'Data Guru',cls:'tile-orange'},
+    {p:'kartu',ic:'\u{1FAAA}',lbl:'Cetak QR Siswa',cls:'tile-rose'},
+    {p:'kartuGuru',ic:'\u{1FAAA}',lbl:'Cetak QR Guru',cls:'tile-rose'},
+    {p:'rekap',ic:'\u{1F4CB}',lbl:'Rekap Siswa'},
+    {p:'rekapGuru',ic:'\u{1F4CB}',lbl:'Rekap Guru'},
+    {p:'dashboard',ic:'\u{1F4CA}',lbl:'Dashboard',cls:'tile-violet'},
+    {p:'pengaturan',ic:'\u{2699}\u{FE0F}',lbl:'Pengaturan',cls:'tile-slate'}
+  ];
+  const grid=tiles.map(t=>'<div class="menu-tile-wrap"><a href="#" class="menu-tile '+(t.cls||'')+'" onclick="nav(\''+t.p+'\');return false;"><div class="ico">'+t.ic+'</div><div class="lbl">'+t.lbl+'</div></a></div>').join('');
+  return '<div class="home-greet">'
+    +'<div><h2>'+greet+' \u{1F44B}</h2><p>'+namaApp+'</p></div>'
+    +'<div style="font-size:11px;color:#6b7280;text-align:right">'+new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long'})+'</div>'
+    +'</div>'
+    +'<div class="home-quick">'
+      +'<div class="qcard"><div class="qicon">\u{1F468}\u200D\u{1F393}</div><div><div class="qval">'+todayP.length+'/'+siswa.length+'</div><div class="qlbl">Siswa absen hari ini</div></div></div>'
+      +'<div class="qcard"><div class="qicon" style="background:#fef3c7;color:#92400e">\u{1F468}\u200D\u{1F3EB}</div><div><div class="qval">'+todayG.length+'/'+teachers.length+'</div><div class="qlbl">Guru absen hari ini</div></div></div>'
+    +'</div>'
+    +'<div class="home-section-title">Menu Aplikasi</div>'
+    +'<div class="menu-grid">'+grid+'</div>'
+    +'<div style="margin-top:18px;padding:10px 14px;background:#dcfce7;border:1px solid #86efac;border-radius:10px;font-size:12px;color:#166534">\u{1F511} Lisensi: <strong>'+(lisensi.madrasah||'-')+'</strong> \u00B7 berlaku s/d '+(lisensi.berlaku||'-')+'</div>';
 }
 
 // ===== DASHBOARD =====
@@ -1071,7 +1143,7 @@ function initApp(){
     document.getElementById('hamburger').style.display=window.innerWidth<=768?'block':'none';
     if(window.innerWidth>768)document.getElementById('sidebar').classList.remove('show-mobile');
   });
-  nav('dashboard');
+  nav('home');
 }
 
 // ===== BOOT =====
