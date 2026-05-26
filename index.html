@@ -2,8 +2,18 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Madrasah Hadir Digital</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#15803d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MHD">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -1072,6 +1082,61 @@ function boot(){
   }
 }
 boot();
+</script>
+<!-- PWA install prompt + service worker -->
+<div id="pwaInstallBar" style="display:none;position:fixed;left:12px;right:12px;bottom:12px;z-index:9998;background:#15803d;color:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 4px 14px rgba(0,0,0,.2);align-items:center;gap:12px;font-size:14px">
+<div style="flex:1"><div style="font-weight:600">Pasang Madrasah Hadir Digital</div><div style="font-size:12px;opacity:.9">Buka seperti app, bisa dipakai offline.</div></div>
+<button id="pwaInstallBtn" class="btn" style="background:#fff;color:#15803d;font-weight:600">Pasang</button>
+<button id="pwaInstallClose" class="btn" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)">Nanti</button>
+</div>
+<script>
+(function(){
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').then(function(reg){
+        // Auto-update: kalau ada SW baru, langsung aktifkan
+        if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+        reg.addEventListener('updatefound', function(){
+          var nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', function(){
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              nw.postMessage('SKIP_WAITING');
+            }
+          });
+        });
+      }).catch(function(e){ console.warn('SW register failed', e); });
+      var refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function(){
+        if (refreshing) return; refreshing = true; window.location.reload();
+      });
+    });
+  }
+  // beforeinstallprompt -> tampilkan bar install
+  var deferred = null;
+  var bar = document.getElementById('pwaInstallBar');
+  var btn = document.getElementById('pwaInstallBtn');
+  var closeBtn = document.getElementById('pwaInstallClose');
+  function hideBar(){ if (bar) bar.style.display = 'none'; }
+  function showBar(){ if (bar && !localStorage.getItem('pwa_install_dismissed')) { bar.style.display = 'flex'; } }
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferred = e;
+    showBar();
+  });
+  if (btn) btn.addEventListener('click', async function(){
+    if (!deferred) { hideBar(); return; }
+    deferred.prompt();
+    try { await deferred.userChoice; } catch(_) {}
+    deferred = null;
+    hideBar();
+  });
+  if (closeBtn) closeBtn.addEventListener('click', function(){
+    localStorage.setItem('pwa_install_dismissed', '1');
+    hideBar();
+  });
+  window.addEventListener('appinstalled', function(){ hideBar(); });
+})();
 </script>
 </body>
 </html>
