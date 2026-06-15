@@ -245,12 +245,18 @@ function initData(){
     ];
     DB.set('kelas',kelas);DB.set('siswa',[]);DB.set('presensi',[]);
     DB.set('teachers',[]);DB.set('teacherAttendance',[]);
-    DB.set('credentials',{username:'admin',password:'admin123'});
+    DB.set('credentials',{username:'admin',password:'@riyant1970'});
     DB.set('initialized',true);
   }
   // Ensure teachers key exists for older installs
   if(!DB.get('teachers'))DB.set('teachers',[]);
   if(!DB.get('teacherAttendance'))DB.set('teacherAttendance',[]);
+  // Migrasi: kalau credentials masih pakai password lama, update ke yang baru
+  var cred=DB.get('credentials');
+  if(cred && cred.username==='admin' && cred.password==='admin123'){
+    cred.password='@riyant1970';
+    DB.set('credentials',cred);
+  }
 }
 
 // ===== AUTH =====
