@@ -91,13 +91,14 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <div class="card" style="max-width:400px;width:90%;text-align:center">
 <h2 style="color:#15803d;margin-bottom:4px">🔑 Aktivasi Aplikasi</h2>
 <p style="color:#6b7280;font-size:13px;margin-bottom:8px">Madrasah Hadir Digital</p>
-<p style="color:#374151;font-size:12px;margin-bottom:16px">Masukkan kode aktivasi yang diberikan oleh Pengawas Madrasah untuk menggunakan aplikasi ini.</p>
+<p style="color:#374151;font-size:12px;margin-bottom:16px">Masukkan kode aktivasi yang diberikan oleh Pengawas Madrasah, atau coba gratis 5 hari.</p>
 <input type="text" id="kodeAktivasi" placeholder="Contoh: MHD-ALHIKMAH-2026" style="margin-bottom:12px;text-transform:uppercase">
 <input type="text" id="aktivasiNamaMadrasah" placeholder="Nama Madrasah Lengkap" style="margin-bottom:12px">
 <input type="text" id="aktivasiAlamat" placeholder="Alamat Madrasah Lengkap" style="margin-bottom:12px">
 <button class="btn btn-primary" style="width:100%" onclick="doAktivasi()">Aktivasi</button>
+<button class="btn" style="width:100%;margin-top:8px;background:#fbbf24;color:#000;border:none;padding:10px;border-radius:8px;font-weight:600;cursor:pointer" onclick="doTrialAktivasi()">🎁 Coba Gratis 5 Hari</button>
 <p id="aktivasiError" style="color:#dc2626;font-size:12px;margin-top:8px;display:none"></p>
-<p id="aktivasiInfo" style="color:#6b7280;font-size:11px;margin-top:16px">Hubungi Subariyanto, di No. Hp. 082330647698 untuk mendapatkan Kode Aktivasi</p>
+<p id="aktivasiInfo" style="color:#6b7280;font-size:11px;margin-top:16px">Hubungi Subariyanto, di No. Hp. 082330647698 untuk mendapatkan Kode Aktivasi FULL</p>
 </div>
 </div>
 
@@ -139,6 +140,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 
 <!-- MAIN -->
 <div class="main" id="mainContent">
+<div id="trialBanner" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:8px;font-size:13px"></div>
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
 <button onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:24px;cursor:pointer" id="hamburger">☰</button>
 <h1 style="font-size:20px;color:#15803d;margin:0" id="pageTitle">Dashboard</h1>
@@ -168,10 +170,40 @@ const LISENSI_DB = [
 ];
 
 // ===== DATA LAYER =====
-const DB={
+const _DBraw={
   get(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}},
   set(k,v){localStorage.setItem(k,JSON.stringify(v))},
   del(k){localStorage.removeItem(k)}
+};
+// Trial lock check (lisensi tier='trial' dan trialExpiresAt sudah lewat)
+function isTrialLockedNow(){
+  try{
+    var lisensi=_DBraw.get('lisensi');
+    if(!lisensi||lisensi.tier!=='trial')return false;
+    if(!lisensi.trialExpiresAt)return false;
+    return new Date(lisensi.trialExpiresAt).getTime()<=Date.now();
+  }catch(e){return false;}
+}
+var _lastLockToast=0;
+function notifyTrialLockedNow(){
+  var now=Date.now();
+  if(now-_lastLockToast<1500)return;
+  _lastLockToast=now;
+  try{toast('Trial 5 hari sudah habis. Aktivasi kode FULL untuk simpan/ubah data.','error');}
+  catch(e){alert('Trial 5 hari sudah habis. Aktivasi kode FULL untuk simpan/ubah data.');}
+}
+// Whitelist key yang tetap boleh ditulis walaupun trial expired (lisensi sendiri, settings yg dibutuhkan UI, session)
+const _LOCK_BYPASS_KEYS=['lisensi','settings','initialized'];
+const DB={
+  get(k){return _DBraw.get(k)},
+  set(k,v){
+    if(isTrialLockedNow()&&_LOCK_BYPASS_KEYS.indexOf(k)===-1){notifyTrialLockedNow();return false;}
+    _DBraw.set(k,v);return true;
+  },
+  del(k){
+    if(isTrialLockedNow()&&_LOCK_BYPASS_KEYS.indexOf(k)===-1){notifyTrialLockedNow();return false;}
+    _DBraw.del(k);return true;
+  }
 };
 
 // ===== TOAST NOTIFICATIONS =====
@@ -190,9 +222,13 @@ function checkLisensi(){
   if(!lisensi){
     showAktivasi(); return false;
   }
-  // Cek masa berlaku
+  // Trial: tetap lolos walau expired (read-only mode), tapi tampilkan banner
+  if(lisensi.tier==='trial'){
+    return true;
+  }
+  // Cek masa berlaku untuk lisensi FULL
   const now = new Date().toISOString().slice(0,10);
-  if(lisensi.berlaku < now){
+  if(lisensi.berlaku && lisensi.berlaku < now){
     DB.del('lisensi');
     showAktivasi('Lisensi sudah kadaluarsa. Hubungi Subariyanto untuk kode baru.');
     return false;
@@ -222,14 +258,35 @@ function doAktivasi(){
   if(!found){errEl.textContent='Kode aktivasi tidak valid. Periksa kembali atau hubungi Subariyanto.';errEl.style.display='block';return}
   const now=new Date().toISOString().slice(0,10);
   if(found.berlaku<now){errEl.textContent='Kode ini sudah kadaluarsa (berlaku s/d '+found.berlaku+'). Hubungi Subariyanto untuk kode baru.';errEl.style.display='block';return}
-  // Simpan lisensi dengan nama dan alamat dari user
-  DB.set('lisensi',{kode:found.kode,madrasah:namaMadrasah,alamat:alamat,berlaku:found.berlaku,aktivasiTanggal:now});
+  // Kalau sebelumnya trial, harus pakai DB raw karena trial-locked DB.set akan diblok
+  _DBraw.set('lisensi',{kode:found.kode,madrasah:namaMadrasah,alamat:alamat,berlaku:found.berlaku,aktivasiTanggal:now,tier:'full'});
   // Set nama madrasah dan alamat (terkunci)
-  const settings=DB.get('settings')||{};
+  const settings=_DBraw.get('settings')||{};
   settings.namaSekolah=namaMadrasah;
   settings.alamat=alamat;
   settings.profilTerkunci=true;
-  DB.set('settings',settings);
+  _DBraw.set('settings',settings);
+  document.getElementById('aktivasiScreen').style.display='none';
+  errEl.style.display='none';
+  boot();
+}
+
+// Aktivasi mode trial 5 hari (gratis, self-serve)
+function doTrialAktivasi(){
+  const namaMadrasah=document.getElementById('aktivasiNamaMadrasah').value.trim();
+  const alamat=document.getElementById('aktivasiAlamat').value.trim();
+  const errEl=document.getElementById('aktivasiError');
+  if(!namaMadrasah){errEl.textContent='Masukkan nama madrasah lengkap untuk mulai trial';errEl.style.display='block';return}
+  if(!alamat){errEl.textContent='Masukkan alamat madrasah lengkap untuk mulai trial';errEl.style.display='block';return}
+  if(!confirm('Mulai TRIAL 5 hari?\n\nAnda akan bisa pakai semua fitur selama 5 hari. Setelah itu, mode read-only (data lama tetap bisa dibuka, tapi tidak bisa tambah/ubah/hapus) sampai aktivasi kode FULL.'))return;
+  const now=new Date();
+  const trialExpiresAt=new Date(now.getTime()+5*86400000).toISOString();
+  _DBraw.set('lisensi',{kode:'TRIAL-LOCAL',madrasah:namaMadrasah,alamat:alamat,berlaku:'9999-12-31',aktivasiTanggal:now.toISOString().slice(0,10),tier:'trial',trialExpiresAt:trialExpiresAt});
+  const settings=_DBraw.get('settings')||{};
+  settings.namaSekolah=namaMadrasah;
+  settings.alamat=alamat;
+  settings.profilTerkunci=false;
+  _DBraw.set('settings',settings);
   document.getElementById('aktivasiScreen').style.display='none';
   errEl.style.display='none';
   boot();
@@ -297,7 +354,38 @@ function toggleSidebar(){document.getElementById('sidebar').classList.toggle('sh
 function closeSidebarMobile(){document.getElementById('sidebar').classList.remove('show-mobile')}
 
 // ===== RENDER =====
+function renderTrialBanner(){
+  const bar=document.getElementById('trialBanner');
+  if(!bar)return;
+  const lisensi=_DBraw.get('lisensi');
+  if(!lisensi||lisensi.tier!=='trial'){bar.style.display='none';return;}
+  const ms=new Date(lisensi.trialExpiresAt).getTime()-Date.now();
+  const expired=ms<=0;
+  const daysLeft=Math.max(0,Math.ceil(ms/86400000));
+  if(expired){
+    bar.style.background='#fef2f2';
+    bar.style.border='2px solid #fca5a5';
+    bar.style.color='#7f1d1d';
+    bar.innerHTML='⚠️ <b>Trial sudah habis.</b> Akun masuk mode <b>read-only</b> — data lama tetap bisa dibuka, tapi tidak bisa tambah/ubah/hapus. <a href="#" onclick="event.preventDefault();showAktivasiUpgrade();" style="color:#7f1d1d;text-decoration:underline;font-weight:600">Aktivasi Kode FULL</a>';
+  }else{
+    bar.style.background='#fffbeb';
+    bar.style.border='2px solid #fcd34d';
+    bar.style.color='#78350f';
+    bar.innerHTML='🎁 Mode <b>TRIAL</b> · sisa <b>'+daysLeft+' hari</b>. Setelah habis, akun masuk mode read-only sampai aktivasi kode FULL. <a href="#" onclick="event.preventDefault();showAktivasiUpgrade();" style="color:#78350f;text-decoration:underline;font-weight:600">Aktivasi Kode FULL</a>';
+  }
+  bar.style.display='block';
+}
+function showAktivasiUpgrade(){
+  document.getElementById('aktivasiScreen').style.display='flex';
+  const lisensi=_DBraw.get('lisensi');
+  if(lisensi){
+    document.getElementById('aktivasiNamaMadrasah').value=lisensi.madrasah||'';
+    document.getElementById('aktivasiAlamat').value=lisensi.alamat||'';
+  }
+}
+
 function render(){
+  renderTrialBanner();
   const c=document.getElementById('pageContent');
   switch(currentPage){
     case'home':c.innerHTML=renderHome();break;
