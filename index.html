@@ -54,7 +54,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 .toast-error{background:#dc2626}
 .toast-warning{background:#d97706}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-@media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:absolute;left:0;top:0;width:100%}.no-print{display:none !important}.sidebar{display:none !important}.main{margin-left:0 !important}}
+@media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:absolute;left:0;top:0;width:100%}.no-print{display:none !important}.sidebar{display:none !important}.main{margin-left:0 !important}body.is-trial-print .print-area::before{content:'TRIAL';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:8rem;font-weight:900;color:rgba(220,38,38,.18) !important;pointer-events:none;z-index:9998;letter-spacing:1rem;-webkit-print-color-adjust:exact;visibility:visible !important}body.is-trial-print .print-area::after{content:'DOKUMEN VERSI TRIAL \2014  TIDAK SAH UNTUK PENGGUNAAN RESMI';position:fixed;top:6px;left:0;right:0;text-align:center;font-size:9pt;color:rgba(220,38,38,.75);font-weight:700;letter-spacing:.1em;pointer-events:none;z-index:9999;visibility:visible !important}}
 /* === Home grid (Android-style launcher) === */
 .menu-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:8px}
 @media(min-width:540px){.menu-grid{grid-template-columns:repeat(5,1fr);gap:16px}}
@@ -175,6 +175,11 @@ const _DBraw={
   set(k,v){localStorage.setItem(k,JSON.stringify(v))},
   del(k){localStorage.removeItem(k)}
 };
+function _mhdIsTrialActive(){try{const l=(_DBraw&&_DBraw.get)?_DBraw.get('lisensi'):null;return !!(l&&l.tier==='trial');}catch(e){return false;}}
+function _mhdApplyTrialPrintMark(){try{document.body.classList.toggle('is-trial-print',_mhdIsTrialActive());}catch(e){}}
+function _mhdStampPdfTrial(doc){if(!_mhdIsTrialActive()||!doc)return;try{var total=doc.internal.getNumberOfPages();var w=doc.internal.pageSize.getWidth(),h=doc.internal.pageSize.getHeight();for(var i=1;i<=total;i++){doc.setPage(i);try{if(doc.GState&&doc.setGState)doc.setGState(new doc.GState({opacity:0.18}));}catch(e){}doc.setTextColor(220,38,38);doc.setFont('helvetica','bold');doc.setFontSize(72);doc.text('TRIAL',w/2,h/2,{align:'center',angle:30});try{if(doc.GState&&doc.setGState)doc.setGState(new doc.GState({opacity:0.7}));}catch(e){}doc.setFontSize(8);doc.text('DOKUMEN VERSI TRIAL — TIDAK SAH UNTUK PENGGUNAAN RESMI',w/2,6,{align:'center'});try{if(doc.GState&&doc.setGState)doc.setGState(new doc.GState({opacity:1}));}catch(e){}}}catch(e){console.warn('stampPdfTrial:',e);}}
+window.addEventListener('beforeprint',_mhdApplyTrialPrintMark);
+document.addEventListener('DOMContentLoaded',_mhdApplyTrialPrintMark);
 // Trial lock check (lisensi tier='trial' dan trialExpiresAt sudah lewat)
 function isTrialLockedNow(){
   try{
@@ -923,6 +928,7 @@ function exportRekapPDF(){
   });
   if(rows.length===0){toast('Tidak ada data untuk di-export','error');return}
   doc.autoTable({startY:34,head:[['No','Nama','NISN','Kelas','Tanggal','Jam','Status','Ket.']],body:rows,styles:{fontSize:8}});
+  _mhdStampPdfTrial(doc);
   doc.save('rekap-presensi-'+start+'.pdf');
   toast('PDF berhasil diexport');
 }
