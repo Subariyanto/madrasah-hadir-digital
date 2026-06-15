@@ -881,6 +881,7 @@ function loadRekap(){
 }
 function cetakRekap(){loadRekap();setTimeout(()=>window.print(),200)}
 function exportRekapCSV(){
+if(_mhdIsTrialActive()){toast('Export CSV hanya tersedia untuk akun FULL. Cetak Preview (Ctrl+P) tetap bisa dengan watermark TRIAL.','warning');return;}
   const start=document.getElementById('rekapStart').value;
   const end=document.getElementById('rekapEnd').value;
   const selKelas=Array.from(document.querySelectorAll('.rekapKelas:checked')).map(c=>c.value);
@@ -905,6 +906,7 @@ function exportRekapCSV(){
   toast('CSV berhasil diexport');
 }
 function exportRekapPDF(){
+if(_mhdIsTrialActive()){toast('Export PDF hanya tersedia untuk akun FULL. Cetak Preview (Ctrl+P) tetap bisa dengan watermark TRIAL.','warning');return;}
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF();
   const settings=DB.get('settings')||{};
@@ -1177,6 +1179,7 @@ function loadRekapGuru(){
 }
 function cetakRekapGuru(){loadRekapGuru();setTimeout(function(){window.print()},200)}
 function exportRekapGuruCSV(){
+if(_mhdIsTrialActive()){toast('Export CSV Guru hanya tersedia untuk akun FULL. Cetak Preview (Ctrl+P) tetap bisa dengan watermark TRIAL.','warning');return;}
   const start=document.getElementById('rekapGuruStart').value;
   const end=document.getElementById('rekapGuruEnd').value;
   const statusFilter=document.getElementById('rekapGuruFilter').value;
