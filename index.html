@@ -225,7 +225,9 @@ function confirmDialog(msg){return confirm(msg)}
 function checkLisensi(){
   const lisensi = DB.get('lisensi');
   if(!lisensi){
-    showAktivasi(); return false;
+    // Jangan tampil aktivasi di sini — biarkan login dulu.
+    // Admin akan bypass, user lain akan diarahkan ke aktivasi setelah login.
+    return false;
   }
   // Trial: tetap lolos walau expired (read-only mode), tapi tampilkan banner
   if(lisensi.tier==='trial'){
@@ -340,8 +342,27 @@ function doLogin(){
     sessionStorage.setItem('loggedIn','true');loggedIn=true;
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('loginError').style.display='none';
+    // Admin: auto-bypass lisensi — harusnya admin yang nerbitin kode aktivasi
+    if(u==='admin'){
+      ensureAdminLisensi();
+    }else{
+      // User non-admin: wajib aktivasi
+      const lisensi=DB.get('lisensi');
+      if(!lisensi){
+        sessionStorage.removeItem('loggedIn');loggedIn=false;
+        showAktivasi();
+        return;
+      }
+    }
     initApp();
   }else{document.getElementById('loginError').style.display='block'}
+}
+function ensureAdminLisensi(){
+  // Admin selalu punya lisensi FULL permanen (silent set)
+  var l=DB.get('lisensi');
+  if(!l||l.tier!=='full'){
+    _DBraw.set('lisensi',{kode:'ADMIN-MASTER',madrasah:'Admin',alamat:'-',berlaku:'2099-12-31',aktivasiTanggal:new Date().toISOString().slice(0,10),tier:'full'});
+  }
 }
 function logout(){sessionStorage.removeItem('loggedIn');location.reload()}
 
@@ -1252,9 +1273,8 @@ function initApp(){
 // ===== BOOT =====
 function boot(){
   initData();
-  if(checkLisensi()){
-    checkAuth();
-  }
+  checkLisensi(); // catat status lisensi tapi jangan blokir — selalu lanjut ke login
+  checkAuth();
 }
 boot();
 </script>
