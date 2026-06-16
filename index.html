@@ -155,6 +155,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 // Untuk menambah madrasah baru, tambahkan entry di LISENSI_DB.
 // ============================================================
 const LISENSI_DB = [
+  { kode: 'MHD-ADMIN-2026', madrasah: 'ADMIN (Master)', berlaku: '2099-12-31' },
   { kode: 'MHD-ALHIKMAH-2026', madrasah: 'MA Al-Hikmah', berlaku: '2027-12-31' },
   { kode: 'MHD-ANNUR-2026', madrasah: 'MA An-Nur', berlaku: '2027-12-31' },
   { kode: 'MHD-ALMAARIF-2026', madrasah: 'MA Al-Maarif', berlaku: '2027-12-31' },
@@ -225,9 +226,7 @@ function confirmDialog(msg){return confirm(msg)}
 function checkLisensi(){
   const lisensi = DB.get('lisensi');
   if(!lisensi){
-    // Jangan tampil aktivasi di sini — biarkan login dulu.
-    // Admin akan bypass, user lain akan diarahkan ke aktivasi setelah login.
-    return false;
+    showAktivasi(); return false;
   }
   // Trial: tetap lolos walau expired (read-only mode), tapi tampilkan banner
   if(lisensi.tier==='trial'){
@@ -1273,8 +1272,9 @@ function initApp(){
 // ===== BOOT =====
 function boot(){
   initData();
-  checkLisensi(); // catat status lisensi tapi jangan blokir — selalu lanjut ke login
-  checkAuth();
+  if(checkLisensi()){
+    checkAuth();
+  }
 }
 boot();
 </script>
