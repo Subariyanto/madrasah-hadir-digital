@@ -275,7 +275,11 @@ function doAktivasi(){
   _DBraw.set('settings',settings);
   document.getElementById('aktivasiScreen').style.display='none';
   errEl.style.display='none';
-  boot();
+  // Auto-login setelah aktivasi — langsung masuk dashboard
+  sessionStorage.setItem('loggedIn','true');
+  loggedIn=true;
+  initData();
+  initApp();
 }
 
 // Aktivasi mode trial 5 hari (gratis, self-serve)
@@ -296,7 +300,11 @@ function doTrialAktivasi(){
   _DBraw.set('settings',settings);
   document.getElementById('aktivasiScreen').style.display='none';
   errEl.style.display='none';
-  boot();
+  // Auto-login — langsung masuk dashboard
+  sessionStorage.setItem('loggedIn','true');
+  loggedIn=true;
+  initData();
+  initApp();
 }
 
 // ===== INIT DATA =====
@@ -1280,9 +1288,45 @@ function initApp(){
 // ===== BOOT =====
 function boot(){
   initData();
-  // Selalu tampilkan login dulu — admin bisa langsung masuk tanpa aktivasi.
-  // Non-admin yang belum punya lisensi akan diarahkan ke aktivasi setelah login.
-  checkAuth();
+  // Cek apakah ini halaman admin (?mode=admin)
+  var isAdminMode = window.location.search.indexOf('mode=admin') !== -1;
+  if(isAdminMode){
+    // Admin: tampilkan login screen
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('aktivasiScreen').style.display='none';
+    // Pre-fill credentials untuk admin
+    setTimeout(function(){
+      var u=document.getElementById('loginUser'); if(u) u.value='admin';
+    }, 100);
+    return;
+  }
+  // User madrasah: cek apakah sudah ada lisensi valid
+  var lisensi = _DBraw.get('lisensi');
+  if(lisensi && lisensi.tier==='full'){
+    var now = new Date().toISOString().slice(0,10);
+    if(lisensi.berlaku >= now){
+      // Lisensi valid → auto-login, langsung dashboard
+      sessionStorage.setItem('loggedIn','true');
+      loggedIn=true;
+      initApp();
+      return;
+    } else {
+      // Lisensi expired → hapus, tampilkan aktivasi
+      _DBraw.del('lisensi');
+      showAktivasi('Lisensi sudah kadaluarsa. Hubungi Subariyanto untuk kode baru.');
+      return;
+    }
+  }
+  if(lisensi && lisensi.tier==='trial'){
+    // Trial: auto-login, langsung dashboard
+    sessionStorage.setItem('loggedIn','true');
+    loggedIn=true;
+    initApp();
+    return;
+  }
+  // Belum ada lisensi → tampilkan layar aktivasi
+  document.getElementById('aktivasiScreen').style.display='flex';
+  document.getElementById('loginScreen').style.display='none';
 }
 boot();
 </script>
