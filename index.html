@@ -342,15 +342,22 @@ function doLogin(){
     sessionStorage.setItem('loggedIn','true');loggedIn=true;
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('loginError').style.display='none';
-    // Admin: auto-bypass lisensi — harusnya admin yang nerbitin kode aktivasi
+    // Admin: auto-bypass aktivasi (admin yang nerbitin kode aktivasi)
     if(u==='admin'){
       ensureAdminLisensi();
     }else{
-      // User non-admin: wajib aktivasi
+      // User non-admin: wajib aktivasi (cek lisensi & masa berlaku)
       const lisensi=DB.get('lisensi');
+      const now=new Date().toISOString().slice(0,10);
       if(!lisensi){
         sessionStorage.removeItem('loggedIn');loggedIn=false;
         showAktivasi();
+        return;
+      }
+      if(lisensi.tier!=='trial' && lisensi.berlaku && lisensi.berlaku<now){
+        sessionStorage.removeItem('loggedIn');loggedIn=false;
+        DB.del('lisensi');
+        showAktivasi('Lisensi sudah kadaluarsa. Hubungi Subariyanto untuk kode baru.');
         return;
       }
     }
@@ -1273,9 +1280,9 @@ function initApp(){
 // ===== BOOT =====
 function boot(){
   initData();
-  if(checkLisensi()){
-    checkAuth();
-  }
+  // Selalu tampilkan login dulu — admin bisa langsung masuk tanpa aktivasi.
+  // Non-admin yang belum punya lisensi akan diarahkan ke aktivasi setelah login.
+  checkAuth();
 }
 boot();
 </script>
