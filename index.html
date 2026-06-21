@@ -1529,7 +1529,13 @@ function renderGuru(){
   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'+
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-size:13px;color:#6b7280">Total: '+teachers.length+' guru</span>'+
     '<input id="searchGuru" placeholder="Cari guru..." value="'+search+'" oninput="render()" style="max-width:180px;padding:6px 10px"></div>'+
-    '<button class="btn btn-primary" onclick="showAddGuru()">+ Tambah Guru</button>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+      '<button class="btn btn-secondary" onclick="downloadTemplateGuru()" title="Unduh template CSV">\u2B07\uFE0F Template</button>'+
+      '<button class="btn btn-secondary" onclick="document.getElementById(\'fileImportGuru\').click()" title="Import CSV">\u{1F4E5} Import</button>'+
+      '<input type="file" id="fileImportGuru" accept=".csv" style="display:none" onchange="importGuruCSV(event)">'+
+      '<button class="btn btn-secondary" onclick="exportGuruCSV()" title="Export CSV">\u{1F4E4} Export</button>'+
+      '<button class="btn btn-primary" onclick="showAddGuru()">+ Tambah Guru</button>'+
+    '</div>'+
   '</div>'+
   (filtered.length===0?'<p style="color:#6b7280;font-size:13px">Belum ada data guru.</p>':
   '<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>NIP</th><th>Jabatan</th><th>No HP</th><th>Status</th><th>Aksi</th></tr>'+
@@ -1538,6 +1544,91 @@ function renderGuru(){
     '<button class="btn btn-secondary" onclick="editGuru(\''+t.id+'\')" style="padding:4px 8px;font-size:12px">\u270F\uFE0F</button> '+
     '<button class="btn btn-danger" onclick="hapusGuru(\''+t.id+'\')" style="padding:4px 8px;font-size:12px">\u{1F5D1}\uFE0F</button></td></tr>';
   }).join('')+'</table></div>')+'</div>';
+}
+function downloadTemplateGuru(){
+  const header=['nama','nip','jabatan','no_hp','status_aktif'];
+  const sample=[
+    ['Drs. Ahmad Hidayat','196501011990031001','Kepala Madrasah','081234567890','aktif'],
+    ['Siti Aisyah, S.Pd','198507152010012003','Guru Kelas','081298765432','aktif']
+  ];
+  const sep=_csvSep();
+  const csv=[header.map(_csvEscape).join(sep)].concat(sample.map(r=>r.map(_csvEscape).join(sep))).join('\r\n');
+  _downloadCSV('template-guru.csv','sep='+sep+'\r\n'+csv);
+  toast('Template diunduh. Isi data, lalu klik Import.');
+}
+function exportGuruCSV(){
+  const teachers=DB.get('teachers')||[];
+  if(teachers.length===0){toast('Belum ada data guru untuk di-export','warning');return;}
+  const header=['nama','nip','jabatan','no_hp','status_aktif'];
+  const rows=teachers.map(t=>[
+    t.nama||'', t.nip||'', t.jabatan||'', t.noHp||'',
+    (t.statusAktif===false?'nonaktif':'aktif')
+  ]);
+  const sep=_csvSep();
+  const csv=[header.map(_csvEscape).join(sep)].concat(rows.map(r=>r.map(_csvEscape).join(sep))).join('\r\n');
+  const ts=new Date().toISOString().slice(0,10);
+  _downloadCSV('data-guru-'+ts+'.csv','sep='+sep+'\r\n'+csv);
+  toast('Berhasil export '+teachers.length+' guru');
+}
+function importGuruCSV(ev){
+  const file=ev.target.files&&ev.target.files[0];
+  ev.target.value='';
+  if(!file)return;
+  if(typeof isTrialLockedNow==='function' && isTrialLockedNow()){notifyTrialLockedNow();return;}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      let text=String(e.target.result||'').replace(/^\uFEFF/,'');
+      text=text.replace(/^sep=.\r?\n/i,'');
+      const rows=_csvParse(text);
+      if(rows.length<2){toast('File CSV kosong atau tidak valid','error');return;}
+      const header=rows[0].map(h=>String(h).trim().toLowerCase());
+      const idxNama=header.indexOf('nama');
+      const idxNip=header.indexOf('nip');
+      const idxJabatan=header.indexOf('jabatan');
+      const idxHp=header.indexOf('no_hp');
+      const idxStatus=header.indexOf('status_aktif');
+      if(idxNama<0){
+        toast('Header CSV harus minimal: nama. Gunakan Template.','error');
+        return;
+      }
+      let teachers=DB.get('teachers')||[];
+      let added=0,updated=0,skipped=0;
+      for(let i=1;i<rows.length;i++){
+        const r=rows[i];
+        if(!r||r.every(c=>!String(c||'').trim())){continue;}
+        const nama=String(r[idxNama]||'').trim();
+        if(!nama){skipped++;continue;}
+        const nip=idxNip>=0?String(r[idxNip]||'').trim():'';
+        const jabatan=idxJabatan>=0?String(r[idxJabatan]||'').trim():'';
+        const noHp=idxHp>=0?String(r[idxHp]||'').trim():'';
+        const statusRaw=idxStatus>=0?String(r[idxStatus]||'').trim().toLowerCase():'aktif';
+        const statusAktif=!(statusRaw==='nonaktif'||statusRaw==='non-aktif'||statusRaw==='false'||statusRaw==='0'||statusRaw==='off');
+        // Match by NIP first (kalau NIP terisi), fallback ke nama+jabatan
+        let existing=null;
+        if(nip){existing=teachers.find(t=>(t.nip||'').trim()===nip);}
+        if(!existing){existing=teachers.find(t=>t.nama.toLowerCase()===nama.toLowerCase() && (t.jabatan||'').toLowerCase()===jabatan.toLowerCase());}
+        if(existing){
+          existing.nama=nama;
+          existing.nip=nip;
+          existing.jabatan=jabatan;
+          existing.noHp=noHp;
+          existing.statusAktif=statusAktif;
+          updated++;
+        } else {
+          teachers.push({id:'g'+Date.now()+'_'+i,nama,nip,jabatan,noHp,statusAktif});
+          added++;
+        }
+      }
+      DB.set('teachers',teachers);
+      render();
+      toast('Import selesai: +'+added+' baru, '+updated+' update'+(skipped?', '+skipped+' dilewati':''));
+    }catch(err){
+      console.error(err);
+      toast('Gagal import: '+err.message,'error');
+    }
+  };
+  reader.readAsText(file,'utf-8');
 }
 function showAddGuru(editId){
   const teachers=DB.get('teachers')||[];
