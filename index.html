@@ -21,8 +21,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <!-- Supabase Cloud config (optional) -->
 <script>
-  // Konfigurasi Supabase dari URL param, localStorage, atau hard-coded
+  // Konfigurasi Supabase: default credentials di-bundle. User bisa override via URL param atau localStorage.
   (function(){
+    // Default credentials (production)
+    var DEFAULT_URL = 'https://gdnkvwiwrluovtpgypni.supabase.co';
+    var DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdkbmt2d2l3cmx1b3Z0cGd5cG5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwMDIyNDcsImV4cCI6MjA5NzU3ODI0N30.ri8n7tzeLCo8PbP2TjBWSswm5uj5K6zkHtltFUZb-Mw';
     var qp = new URLSearchParams(location.search);
     if(qp.get('supabase')){
       try{
@@ -31,12 +34,19 @@
         if(cfg.key) window.MHD_SUPABASE_ANON_KEY = cfg.key;
         localStorage.setItem('mhd_supabase_cfg', JSON.stringify(cfg));
       }catch(e){}
+    } else if(qp.get('cloud')==='off'){
+      // Disable cloud explicitly
+      localStorage.setItem('mhd_cloud_disabled','1');
     } else {
       try{
         var saved = JSON.parse(localStorage.getItem('mhd_supabase_cfg')||'null');
-        if(saved){
+        if(saved && saved.url && saved.key){
           window.MHD_SUPABASE_URL = saved.url;
           window.MHD_SUPABASE_ANON_KEY = saved.key;
+        } else if(localStorage.getItem('mhd_cloud_disabled')!=='1'){
+          // Pakai default bundled credentials
+          window.MHD_SUPABASE_URL = DEFAULT_URL;
+          window.MHD_SUPABASE_ANON_KEY = DEFAULT_KEY;
         }
       }catch(e){}
     }
@@ -229,13 +239,57 @@ const DB={
   get(k){return _DBraw.get(k)},
   set(k,v){
     if(isTrialLockedNow()&&_LOCK_BYPASS_KEYS.indexOf(k)===-1){notifyTrialLockedNow();return false;}
-    _DBraw.set(k,v);return true;
+    _DBraw.set(k,v);
+    // Auto-sync ke cloud (debounced)
+    try{ if(window.MHDCloud && window.MHDCloud.enabled) _mhdCloudQueue(k); }catch(e){}
+    return true;
   },
   del(k){
     if(isTrialLockedNow()&&_LOCK_BYPASS_KEYS.indexOf(k)===-1){notifyTrialLockedNow();return false;}
     _DBraw.del(k);return true;
   }
 };
+
+// ===== AUTO CLOUD SYNC (debounced push on DB.set) =====
+var _mhdSyncTimer=null;
+var _mhdSyncDirty={};
+function _mhdCloudQueue(key){
+  // Hanya push key data yang relevan ke cloud
+  if(['kelas','siswa','teachers','presensi'].indexOf(key)<0)return;
+  _mhdSyncDirty[key]=true;
+  if(_mhdSyncTimer)clearTimeout(_mhdSyncTimer);
+  _mhdSyncTimer=setTimeout(_mhdCloudFlush, 1500);
+}
+async function _mhdCloudFlush(){
+  _mhdSyncTimer=null;
+  if(!window.MHDCloud||!window.MHDCloud.enabled)return;
+  const madrasahId=_DBraw.get('cloud_madrasah_id');
+  if(!madrasahId){
+    // Belum punya cloud_madrasah_id, coba resolve dari kode aktivasi
+    const lis=_DBraw.get('lisensi');
+    if(lis && lis.kode){
+      try{
+        const m=await window.MHDCloud.findMadrasahByKode(lis.kode);
+        if(m && m.id){ _DBraw.set('cloud_madrasah_id', m.id); }
+        else { return; }
+      }catch(e){return;}
+    } else return;
+  }
+  const id=_DBraw.get('cloud_madrasah_id');
+  if(!id)return;
+  const dirty=Object.assign({},_mhdSyncDirty);
+  _mhdSyncDirty={};
+  const payload={};
+  if(dirty.kelas)payload.kelas=_DBraw.get('kelas')||[];
+  if(dirty.siswa)payload.siswa=_DBraw.get('siswa')||[];
+  if(dirty.teachers)payload.guru=_DBraw.get('teachers')||[];
+  if(dirty.presensi)payload.presensi=_DBraw.get('presensi')||[];
+  try{
+    await window.MHDCloud.pushAll(id, payload);
+  }catch(e){
+    console.warn('[MHDCloud] auto-sync gagal:',e);
+  }
+}
 
 // ===== TOAST NOTIFICATIONS =====
 function toast(msg,type='success'){
@@ -277,30 +331,72 @@ function showAktivasi(msg){
   }
 }
 
-function doAktivasi(){
+async function doAktivasi(){
   const input=document.getElementById('kodeAktivasi').value.trim().toUpperCase();
-  const namaMadrasah=document.getElementById('aktivasiNamaMadrasah').value.trim();
-  const alamat=document.getElementById('aktivasiAlamat').value.trim();
+  const namaInputUser=document.getElementById('aktivasiNamaMadrasah').value.trim();
+  const alamatInputUser=document.getElementById('aktivasiAlamat').value.trim();
   const errEl=document.getElementById('aktivasiError');
   if(!input){errEl.textContent='Masukkan kode aktivasi';errEl.style.display='block';return}
-  if(!namaMadrasah){errEl.textContent='Masukkan nama madrasah lengkap';errEl.style.display='block';return}
-  if(!alamat){errEl.textContent='Masukkan alamat madrasah lengkap';errEl.style.display='block';return}
-  const found=LISENSI_DB.find(l=>l.kode===input);
-  if(!found){errEl.textContent='Kode aktivasi tidak valid. Periksa kembali atau hubungi Subariyanto.';errEl.style.display='block';return}
+  if(!namaInputUser){errEl.textContent='Masukkan nama madrasah lengkap';errEl.style.display='block';return}
+  if(!alamatInputUser){errEl.textContent='Masukkan alamat madrasah lengkap';errEl.style.display='block';return}
   const now=new Date().toISOString().slice(0,10);
-  if(found.berlaku<now){errEl.textContent='Kode ini sudah kadaluarsa (berlaku s/d '+found.berlaku+'). Hubungi Subariyanto untuk kode baru.';errEl.style.display='block';return}
-  // Kalau sebelumnya trial, harus pakai DB raw karena trial-locked DB.set akan diblok
-  _DBraw.set('lisensi',{kode:found.kode,madrasah:namaMadrasah,alamat:alamat,berlaku:found.berlaku,aktivasiTanggal:now,tier:'full'});
-  // Set nama madrasah dan alamat (terkunci)
+  let kodeFinal=input, namaFinal=namaInputUser, alamatFinal=alamatInputUser, berlakuFinal=null;
+  // Coba cek ke cloud dulu kalau aktif
+  if(window.MHDCloud && window.MHDCloud.enabled){
+    try{
+      const m = await window.MHDCloud.findMadrasahByKode(input);
+      if(!m){
+        errEl.textContent='Kode aktivasi tidak terdaftar di server. Hubungi Subariyanto.';errEl.style.display='block';return;
+      }
+      if(m.berlaku && m.berlaku<now){
+        errEl.textContent='Kode ini sudah kadaluarsa (berlaku s/d '+m.berlaku+'). Hubungi Subariyanto.';errEl.style.display='block';return;
+      }
+      kodeFinal=m.kode_aktivasi;
+      namaFinal=m.nama;             // Identitas madrasah dari cloud (bukan input user)
+      alamatFinal=m.alamat||alamatInputUser;
+      berlakuFinal=m.berlaku||'2027-12-31';
+      _DBraw.set('cloud_madrasah_id', m.id);
+    }catch(e){
+      console.warn('Cloud lookup gagal, fallback ke local:',e);
+      // Fallback ke LISENSI_DB lokal
+      const found=LISENSI_DB.find(l=>l.kode===input);
+      if(!found){errEl.textContent='Kode aktivasi tidak valid (dan koneksi cloud gagal).';errEl.style.display='block';return;}
+      if(found.berlaku<now){errEl.textContent='Kode ini sudah kadaluarsa (berlaku s/d '+found.berlaku+').';errEl.style.display='block';return;}
+      kodeFinal=found.kode;
+      namaFinal=found.madrasah;
+      berlakuFinal=found.berlaku;
+    }
+  } else {
+    // Mode offline: pakai LISENSI_DB lokal
+    const found=LISENSI_DB.find(l=>l.kode===input);
+    if(!found){errEl.textContent='Kode aktivasi tidak valid. Hubungi Subariyanto.';errEl.style.display='block';return;}
+    if(found.berlaku<now){errEl.textContent='Kode ini sudah kadaluarsa (berlaku s/d '+found.berlaku+').';errEl.style.display='block';return;}
+    kodeFinal=found.kode;
+    namaFinal=found.madrasah;
+    berlakuFinal=found.berlaku;
+  }
+  // Simpan lisensi (pakai data dari cloud kalau ada)
+  _DBraw.set('lisensi',{kode:kodeFinal,madrasah:namaFinal,alamat:alamatFinal,berlaku:berlakuFinal,aktivasiTanggal:now,tier:'full'});
   const settings=_DBraw.get('settings')||{};
-  settings.namaSekolah=namaMadrasah;
-  settings.alamat=alamat;
+  settings.namaSekolah=namaFinal;
+  settings.alamat=alamatFinal;
   settings.profilTerkunci=true;
   _DBraw.set('settings',settings);
+  // Kalau cloud aktif, auto-pull data madrasah
+  if(window.MHDCloud && window.MHDCloud.enabled && _DBraw.get('cloud_madrasah_id')){
+    try{
+      const data = await window.MHDCloud.pullAll(_DBraw.get('cloud_madrasah_id'));
+      if(data.kelas && data.kelas.length) _DBraw.set('kelas', data.kelas.map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})));
+      if(data.siswa && data.siswa.length) _DBraw.set('siswa', data.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||''})));
+      if(data.guru && data.guru.length) _DBraw.set('teachers', data.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})));
+      if(data.presensi && data.presensi.length) _DBraw.set('presensi', data.presensi.map(p=>({id:p.id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktu:p.waktu||'',keterangan:p.keterangan||''})));
+    }catch(e){console.warn('Auto-pull gagal:',e);}
+  }
   document.getElementById('aktivasiScreen').style.display='none';
   errEl.style.display='none';
-  // Auto-login setelah aktivasi — langsung masuk dashboard
+  // Auto-login setelah aktivasi
   localStorage.setItem('loggedIn','true');
+  localStorage.setItem('role','madrasah');
   loggedIn=true;
   initData();
   initApp();
