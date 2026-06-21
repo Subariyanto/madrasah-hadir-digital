@@ -522,13 +522,26 @@ function ensureAdminLisensi(){
 }
 function logout(){
   const role=localStorage.getItem('role');
+  if(role==='admin'){
+    if(!confirm('Logout admin?'))return;
+    localStorage.removeItem('loggedIn');
+    localStorage.removeItem('role');
+    location.reload();
+    return;
+  }
+  // User madrasah: cukup keluar sesi, lisensi tetap supaya tidak perlu aktivasi ulang
+  if(!confirm('Keluar dari aplikasi? Aktivasi madrasah tetap tersimpan, tinggal masuk lagi tanpa kode.'))return;
   localStorage.removeItem('loggedIn');
   localStorage.removeItem('role');
-  if(role!=='admin'){
-    // User madrasah: hapus lisensi → kembali ke aktivasi screen
-    try{_DBraw.del('lisensi');}catch(e){}
-  }
   location.reload();
+}
+function hapusAktivasi(){
+  if(!confirm('Hapus aktivasi madrasah ini?\nAplikasi akan kembali ke layar aktivasi dan harus masukkan kode lagi.\n\nData siswa/guru/presensi TIDAK ikut dihapus.'))return;
+  try{_DBraw.del('lisensi');}catch(e){}
+  localStorage.removeItem('loggedIn');
+  localStorage.removeItem('role');
+  toast('Aktivasi dihapus');
+  setTimeout(()=>location.reload(), 600);
 }
 
 // ===== NAVIGATION =====
@@ -1396,6 +1409,20 @@ function renderPengaturan(){
   '<p style="font-size:13px;color:#6b7280;margin-bottom:10px">Hapus semua data presensi dan siswa. Lisensi tetap aktif.</p>'+
   '<button class="btn btn-danger" onclick="resetData()">\u{1F5D1}\uFE0F Reset Data Presensi & Siswa</button>'+
   '</div>'+
+  // ===== AKTIVASI =====
+  '<hr style="margin:20px 0;border-color:#e5e7eb">'+
+  '<h3 style="margin:0 0 12px;font-size:15px;color:#15803d">\u{1F511} Aktivasi Madrasah</h3>'+
+  (function(){
+    const lis=DB.get('lisensi');
+    if(!lis)return '<p style="font-size:13px;color:#6b7280">Belum ada lisensi aktif.</p>';
+    return '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:13px">'+
+      '<div><b>Madrasah:</b> '+(lis.nama||'-')+'</div>'+
+      '<div><b>Kode:</b> <code>'+(lis.kode||'-')+'</code></div>'+
+      '<div><b>Tier:</b> '+String(lis.tier||'-').toUpperCase()+(lis.berlaku?' \u00B7 berlaku s/d '+lis.berlaku:'')+'</div>'+
+    '</div>'+
+    '<p style="font-size:12px;color:#6b7280;margin-bottom:8px">Logout cuma keluar sesi. Aktivasi tetap tersimpan supaya tidak perlu input kode lagi.<br>Klik tombol di bawah hanya kalau ingin ganti madrasah / pindah ke kode lain.</p>'+
+    '<button class="btn btn-danger" onclick="hapusAktivasi()">\u{1F5D1}\uFE0F Hapus Aktivasi (Ganti Madrasah)</button>';
+  })()+
   // ===== CLOUD SYNC =====
   '<hr style="margin:20px 0;border-color:#e5e7eb">'+
   '<h3 style="margin:0 0 16px;font-size:15px;color:#15803d">\u2601\uFE0F Cloud Sync (Multi-Device)</h3>'+
