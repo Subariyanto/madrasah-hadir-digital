@@ -146,12 +146,30 @@
     }
     if(payload.presensi && payload.presensi.length){
       for(const p of payload.presensi){
-        if(!p.siswa || !p.tanggal) continue;
+        const sid = p.siswa || p.siswaId;
+        if(!sid || !p.tanggal) continue;
         tasks.push(MHD.upsert('presensi', {
-          id:p.id, madrasah_id:madrasahId, siswa_id:p.siswa,
+          id: p.id || (crypto&&crypto.randomUUID?crypto.randomUUID():('p_'+Date.now()+'_'+Math.random().toString(36).slice(2,8))),
+          madrasah_id:madrasahId, siswa_id:sid,
           tanggal:p.tanggal, status:p.status||'hadir',
-          waktu:p.waktu||null, keterangan:p.keterangan||null,
+          waktu_masuk:p.waktuMasuk||p.waktu||null,
+          waktu_pulang:p.waktuPulang||null,
+          keterangan:p.keterangan||null,
           recorded_by:p.recordedBy||null
+        }, 'id'));
+      }
+    }
+    if(payload.presensiGuru && payload.presensiGuru.length){
+      for(const p of payload.presensiGuru){
+        const gid = p.guru || p.guruId;
+        if(!gid || !p.tanggal) continue;
+        tasks.push(MHD.upsert('presensi_guru', {
+          id: p.id || (crypto&&crypto.randomUUID?crypto.randomUUID():('pg_'+Date.now()+'_'+Math.random().toString(36).slice(2,8))),
+          madrasah_id:madrasahId, guru_id:gid,
+          tanggal:p.tanggal, status:p.status||'hadir',
+          waktu_masuk:p.waktuMasuk||null,
+          waktu_pulang:p.waktuPulang||null,
+          keterangan:p.keterangan||null
         }, 'id'));
       }
     }

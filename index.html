@@ -255,7 +255,7 @@ var _mhdSyncTimer=null;
 var _mhdSyncDirty={};
 function _mhdCloudQueue(key){
   // Hanya push key data yang relevan ke cloud
-  if(['kelas','siswa','teachers','presensi'].indexOf(key)<0)return;
+  if(['kelas','siswa','teachers','presensi','teacherAttendance'].indexOf(key)<0)return;
   _mhdSyncDirty[key]=true;
   if(_mhdSyncTimer)clearTimeout(_mhdSyncTimer);
   _mhdSyncTimer=setTimeout(_mhdCloudFlush, 1500);
@@ -284,6 +284,7 @@ async function _mhdCloudFlush(){
   if(dirty.siswa)payload.siswa=_DBraw.get('siswa')||[];
   if(dirty.teachers)payload.guru=_DBraw.get('teachers')||[];
   if(dirty.presensi)payload.presensi=_DBraw.get('presensi')||[];
+  if(dirty.teacherAttendance)payload.presensiGuru=_DBraw.get('teacherAttendance')||[];
   try{
     await window.MHDCloud.pushAll(id, payload);
   }catch(e){
@@ -389,7 +390,8 @@ async function doAktivasi(){
       if(data.kelas && data.kelas.length) _DBraw.set('kelas', data.kelas.map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})));
       if(data.siswa && data.siswa.length) _DBraw.set('siswa', data.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||''})));
       if(data.guru && data.guru.length) _DBraw.set('teachers', data.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})));
-      if(data.presensi && data.presensi.length) _DBraw.set('presensi', data.presensi.map(p=>({id:p.id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktu:p.waktu||'',keterangan:p.keterangan||''})));
+      if(data.presensi && data.presensi.length) _DBraw.set('presensi', data.presensi.map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||p.waktu||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
+      if(data.presensiGuru && data.presensiGuru.length) _DBraw.set('teacherAttendance', data.presensiGuru.map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
     }catch(e){console.warn('Auto-pull gagal:',e);}
   }
   document.getElementById('aktivasiScreen').style.display='none';
@@ -686,7 +688,7 @@ function renderDashboard(){
   ${todayP.slice(0,20).map((p,i)=>{
     const s=(DB.get('siswa')||[]).find(x=>x.id===p.siswaId);
     const k=(DB.get('kelas')||[]).find(x=>x.id===(s?s.kelas:''));
-    return '<tr><td>'+(i+1)+'</td><td>'+(s?s.nama:'-')+'</td><td>'+(k?k.nama:'-')+'</td><td><span class="badge badge-'+p.status+'">'+p.status+'</span></td><td>'+(p.waktu||'-')+'</td></tr>';
+    return '<tr><td>'+(i+1)+'</td><td>'+(s?s.nama:'-')+'</td><td>'+(k?k.nama:'-')+'</td><td><span class="badge badge-'+p.status+'">'+p.status+'</span></td><td>'+(p.waktuMasuk||p.waktu||'-')+(p.waktuPulang?' / '+p.waktuPulang:'')+'</td></tr>';
   }).join('')}
   ${todayP.length>20?'<tr><td colspan="5" style="text-align:center;color:#6b7280">... dan '+(todayP.length-20)+' lainnya</td></tr>':''}
   </table></div>`:''}
@@ -712,10 +714,12 @@ function loadPresensiKelas(){
   const siswa=(DB.get('siswa')||[]).filter(s=>s.kelas===kelasId);
   const presensi=DB.get('presensi')||[];
   if(siswa.length===0){document.getElementById('presensiList').innerHTML='<p style="color:#6b7280;font-size:13px">Belum ada siswa di kelas ini. Tambahkan siswa terlebih dahulu.</p>';return}
-  let html='<table><tr><th>No</th><th>Nama</th><th>NISN</th><th>Status</th></tr>';
+  let html='<table><tr><th>No</th><th>Nama</th><th>NISN</th><th>Status</th><th>Masuk</th><th>Pulang</th></tr>';
   siswa.forEach((s,i)=>{
-    const existing=presensi.find(p=>p.siswaId===s.id&&p.tanggal===tanggal);
+    const existing=presensi.find(p=>(p.siswaId===s.id||p.siswa===s.id)&&p.tanggal===tanggal);
     const st=existing?existing.status:'hadir';
+    const wMasuk=existing?(existing.waktuMasuk||existing.waktu||''):'';
+    const wPulang=existing?(existing.waktuPulang||''):'';
     html+='<tr><td>'+(i+1)+'</td><td>'+s.nama+'</td><td>'+s.nisn+'</td><td>'+
     '<select id="st-'+s.id+'" style="max-width:100px">'+
       '<option value="hadir" '+(st==='hadir'?'selected':'')+'>Hadir</option>'+
@@ -723,10 +727,20 @@ function loadPresensiKelas(){
       '<option value="sakit" '+(st==='sakit'?'selected':'')+'>Sakit</option>'+
       '<option value="izin" '+(st==='izin'?'selected':'')+'>Izin</option>'+
       '<option value="alpha" '+(st==='alpha'?'selected':'')+'>Alpha</option>'+
-    '</select></td></tr>';
+    '</select></td>'+
+    '<td><div style="display:flex;gap:4px;align-items:center"><input type="time" id="wm-'+s.id+'" value="'+wMasuk+'" style="max-width:90px;padding:4px 6px"><button onclick="setNowTime(\''+s.id+'\',\'wm\')" class="btn btn-secondary" style="padding:2px 6px;font-size:11px">Now</button></div></td>'+
+    '<td><div style="display:flex;gap:4px;align-items:center"><input type="time" id="wp-'+s.id+'" value="'+wPulang+'" style="max-width:90px;padding:4px 6px"><button onclick="setNowTime(\''+s.id+'\',\'wp\')" class="btn btn-secondary" style="padding:2px 6px;font-size:11px">Now</button></div></td>'+
+    '</tr>';
   });
   html+='</table>';
   document.getElementById('presensiList').innerHTML=html;
+}
+function setNowTime(id,prefix){
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,'0');
+  const mm=String(now.getMinutes()).padStart(2,'0');
+  const el=document.getElementById(prefix+'-'+id);
+  if(el)el.value=hh+':'+mm;
 }
 function simpanPresensi(){
   const kelasId=document.getElementById('selKelas').value;
@@ -738,10 +752,11 @@ function simpanPresensi(){
     const el=document.getElementById('st-'+s.id);
     if(!el)return;
     const status=el.value;
-    const idx=presensi.findIndex(p=>p.siswaId===s.id&&p.tanggal===tanggal);
-    const waktu=(status==='hadir'||status==='terlambat')?new Date().toLocaleTimeString('id-ID'):'';
-    if(idx>=0){presensi[idx]={...presensi[idx],status,waktu}}
-    else{presensi.push({siswaId:s.id,tanggal,status,waktu})}
+    const wMasuk=document.getElementById('wm-'+s.id)?document.getElementById('wm-'+s.id).value:'';
+    const wPulang=document.getElementById('wp-'+s.id)?document.getElementById('wp-'+s.id).value:'';
+    const idx=presensi.findIndex(p=>(p.siswaId===s.id||p.siswa===s.id)&&p.tanggal===tanggal);
+    if(idx>=0){presensi[idx]={...presensi[idx],siswaId:s.id,tanggal,status,waktuMasuk:wMasuk,waktuPulang:wPulang}}
+    else{presensi.push({siswaId:s.id,tanggal,status,waktuMasuk:wMasuk,waktuPulang:wPulang})}
   });
   DB.set('presensi',presensi);
   toast('Presensi berhasil disimpan!');
@@ -773,7 +788,7 @@ function showWaNotifOption(kelasId, tanggal){
     const k=kelas.find(x=>x.id===s.kelas);
     const p=presensi.find(pr=>pr.siswaId===s.id);
     const tpl=settings.waTemplate||"Assalamu'alaikum Bapak/Ibu Wali dari [Nama Siswa]. Kami informasikan bahwa ananda [Nama Siswa] kelas [Kelas] telah melakukan presensi [Status] pada tanggal [Tanggal] pukul [Jam]. Terima kasih.";
-    const msg=tpl.replace(/\[Nama Siswa\]/g,s.nama).replace(/\[Kelas\]/g,k?k.nama:'-').replace(/\[Status\]/g,p?p.status:'hadir').replace(/\[Tanggal\]/g,tanggal).replace(/\[Jam\]/g,p?p.waktu||'':'-');
+    const msg=tpl.replace(/\[Nama Siswa\]/g,s.nama).replace(/\[Kelas\]/g,k?k.nama:'-').replace(/\[Status\]/g,p?p.status:'hadir').replace(/\[Tanggal\]/g,tanggal).replace(/\[Jam\]/g,p?(p.waktuMasuk||p.waktu||''):'-');
     const waNum=s.noWaOrtu.replace(/^0/,'62').replace(/[^0-9]/g,'');
     const waLink='https://wa.me/'+waNum+'?text='+encodeURIComponent(msg);
     return '<div style="padding:8px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center">'+
@@ -785,12 +800,23 @@ function showWaNotifOption(kelasId, tanggal){
 // ===== SCAN QR =====
 let qrScanner=null;
 function renderScan(){
+  const mode=localStorage.getItem('mhd_scan_mode')||'masuk';
   return '<div class="card">'+
-  '<p style="font-size:13px;color:#6b7280;margin-bottom:12px">Arahkan kamera ke kartu QR siswa untuk mencatat kehadiran otomatis.</p>'+
+  '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">'+
+    '<span style="font-size:13px;color:#374151">Mode Scan:</span>'+
+    '<button class="btn '+(mode==='masuk'?'btn-primary':'btn-secondary')+'" onclick="setScanMode(\'masuk\')">\u{1F305} Masuk</button>'+
+    '<button class="btn '+(mode==='pulang'?'btn-primary':'btn-secondary')+'" onclick="setScanMode(\'pulang\')">\u{1F306} Pulang</button>'+
+  '</div>'+
+  '<p style="font-size:13px;color:#6b7280;margin-bottom:12px">Arahkan kamera ke kartu QR siswa untuk mencatat <b>'+(mode==='masuk'?'absen masuk':'absen pulang')+'</b>.</p>'+
   '<div id="qr-reader" style="width:100%;max-width:400px;margin:0 auto"></div>'+
   '<div id="scanResult" style="margin-top:12px;text-align:center"></div>'+
   '<div id="scanLog" style="margin-top:16px"><h4 style="font-size:14px;color:#15803d">Log Scan Hari Ini</h4><div id="scanLogList"></div></div>'+
   '</div>';
+}
+function setScanMode(m){
+  localStorage.setItem('mhd_scan_mode',m);
+  render();
+  setTimeout(initScanner,80);
 }
 function initScanner(){
   const el=document.getElementById('qr-reader');
@@ -803,15 +829,37 @@ function initScanner(){
 function onScanSuccess(decoded){
   const siswa=(DB.get('siswa')||[]).find(s=>s.id===decoded||s.nisn===decoded);
   const res=document.getElementById('scanResult');
-  if(!siswa){res.innerHTML='<p style="color:#dc2626">❌ Siswa tidak ditemukan: '+decoded+'</p>';return}
+  if(!siswa){res.innerHTML='<p style="color:#dc2626">\u274C Siswa tidak ditemukan: '+decoded+'</p>';return}
+  const mode=localStorage.getItem('mhd_scan_mode')||'masuk';
   const today=new Date().toISOString().slice(0,10);
+  const now=new Date();
+  const waktuStr=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
   let presensi=DB.get('presensi')||[];
-  const existing=presensi.find(p=>p.siswaId===siswa.id&&p.tanggal===today&&p.status==='hadir');
-  if(existing){res.innerHTML='<p style="color:#d97706">⚠️ '+siswa.nama+' sudah tercatat hadir hari ini</p>';return}
-  const idx=presensi.findIndex(p=>p.siswaId===siswa.id&&p.tanggal===today);
-  const waktu=new Date().toLocaleTimeString('id-ID');
-  if(idx>=0){presensi[idx]={siswaId:siswa.id,tanggal:today,status:'hadir',waktu}}
-  else{presensi.push({siswaId:siswa.id,tanggal:today,status:'hadir',waktu})}
+  const idx=presensi.findIndex(p=>(p.siswaId===siswa.id||p.siswa===siswa.id)&&p.tanggal===today);
+  if(mode==='pulang'){
+    if(idx<0){
+      // Belum absen masuk → tetap simpan dengan masuk kosong, pulang terisi
+      presensi.push({siswaId:siswa.id,tanggal:today,status:'hadir',waktuMasuk:'',waktuPulang:waktuStr});
+      res.innerHTML='<p style="color:#15803d">\u2705 Pulang: '+siswa.nama+' \u00B7 '+waktuStr+' (belum absen masuk)</p>';
+    } else {
+      const cur=presensi[idx];
+      if(cur.waktuPulang){res.innerHTML='<p style="color:#d97706">\u26A0\uFE0F '+siswa.nama+' sudah tercatat pulang ('+cur.waktuPulang+')</p>';return;}
+      presensi[idx]={...cur,waktuPulang:waktuStr};
+      res.innerHTML='<p style="color:#15803d">\u2705 Pulang: '+siswa.nama+' \u00B7 '+waktuStr+'</p>';
+    }
+  } else {
+    // Mode masuk
+    if(idx>=0 && presensi[idx].waktuMasuk){
+      res.innerHTML='<p style="color:#d97706">\u26A0\uFE0F '+siswa.nama+' sudah absen masuk ('+presensi[idx].waktuMasuk+')</p>';
+      return;
+    }
+    if(idx>=0){
+      presensi[idx]={...presensi[idx],status:'hadir',waktuMasuk:waktuStr};
+    } else {
+      presensi.push({siswaId:siswa.id,tanggal:today,status:'hadir',waktuMasuk:waktuStr,waktuPulang:''});
+    }
+    res.innerHTML='<p style="color:#15803d">\u2705 Masuk: '+siswa.nama+' \u00B7 '+waktuStr+'</p>';
+  }
   DB.set('presensi',presensi);
   const kls=(DB.get('kelas')||[]).find(x=>x.id===siswa.kelas);
   let waHtml='';
@@ -837,7 +885,7 @@ function updateScanLog(){
   if(!el)return;
   el.innerHTML=presensi.slice(-10).reverse().map(p=>{
     const s=siswa.find(x=>x.id===p.siswaId);
-    return '<div style="padding:4px 0;font-size:13px;border-bottom:1px solid #e5e7eb">'+(s?s.nama:'?')+' - '+p.waktu+'</div>';
+    return '<div style="padding:4px 0;font-size:13px;border-bottom:1px solid #e5e7eb">'+(s?s.nama:'?')+' - '+(p.waktuMasuk||p.waktu||'')+(p.waktuPulang?' \u2192 '+p.waktuPulang:'')+'</div>';
   }).join('')||'<p style="color:#6b7280;font-size:13px">Belum ada scan hari ini</p>';
 }
 
@@ -1221,12 +1269,14 @@ function loadRekap(){
   const settings=DB.get('settings')||{};
   const selKelasNames=kelas.filter(k=>selKelas.includes(k.id)).map(k=>k.nama).join(', ');
   let html='<div style="text-align:center;margin-bottom:16px"><h3 style="margin:0">REKAP PRESENSI SISWA</h3><p style="margin:4px 0">'+(settings.namaSekolah||'Madrasah')+'</p><p style="margin:0;font-size:12px">Periode: '+start+' s/d '+end+'</p><p style="margin:0;font-size:12px">Kelas: '+selKelasNames+'</p></div>';
-  html+='<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>NISN</th><th>Kelas</th><th>Tanggal</th><th>Jam</th><th>Status</th><th>Ket.</th></tr>';
-  if(filtered.length===0){html+='<tr><td colspan="8" style="text-align:center;color:#6b7280">Tidak ada data</td></tr>'}
+  html+='<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>NISN</th><th>Kelas</th><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Ket.</th></tr>';
+  if(filtered.length===0){html+='<tr><td colspan="9" style="text-align:center;color:#6b7280">Tidak ada data</td></tr>'}
   filtered.forEach((p,i)=>{
     const s=siswa.find(x=>x.id===p.siswaId);
     const k=kelas.find(x=>x.id===(s?s.kelas:''));
-    html+='<tr><td>'+(i+1)+'</td><td>'+(s?s.nama:'-')+'</td><td>'+(s?s.nisn:'-')+'</td><td>'+(k?k.nama:'-')+'</td><td>'+p.tanggal+'</td><td>'+(p.waktu||'-')+'</td><td><span class="badge badge-'+(p.status==='hadir'?'hadir':p.status==='sakit'?'sakit':p.status==='izin'?'izin':'alpha')+'">'+p.status+'</span></td><td>'+(p.keterangan||'-')+'</td></tr>';
+    const wm=p.waktuMasuk||p.waktu||'-';
+    const wp=p.waktuPulang||'-';
+    html+='<tr><td>'+(i+1)+'</td><td>'+(s?s.nama:'-')+'</td><td>'+(s?s.nisn:'-')+'</td><td>'+(k?k.nama:'-')+'</td><td>'+p.tanggal+'</td><td>'+wm+'</td><td>'+wp+'</td><td><span class="badge badge-'+(p.status==='hadir'?'hadir':p.status==='sakit'?'sakit':p.status==='izin'?'izin':'alpha')+'">'+p.status+'</span></td><td>'+(p.keterangan||'-')+'</td></tr>';
   });
   html+='</table></div>';
   html+='<div style="margin-top:40px;display:flex;justify-content:space-between"><div style="text-align:center"><p>Mengetahui,</p><p>Kepala Madrasah</p><br><br><br><p>_________________</p></div><div style="text-align:center"><p>&nbsp;</p><p>Operator/Admin</p><br><br><br><p>_________________</p></div></div>';
@@ -1246,11 +1296,13 @@ if(_mhdIsTrialActive()){toast('Export CSV hanya tersedia untuk akun FULL. Cetak 
   let filtered=presensi.filter(p=>p.tanggal>=start&&p.tanggal<=end);
   filtered=filtered.filter(p=>selStatus.includes(p.status));
   filtered=filtered.filter(p=>siswa.find(s=>s.id===p.siswaId));
-  let csv='No,Nama,NISN,Kelas,Tanggal,Jam,Status,Keterangan\n';
+  let csv='No,Nama,NISN,Kelas,Tanggal,Masuk,Pulang,Status,Keterangan\n';
   filtered.forEach((p,i)=>{
     const s=siswa.find(x=>x.id===p.siswaId);
     const k=kelas.find(x=>x.id===(s?s.kelas:''));
-    csv+=(i+1)+','+(s?s.nama:'-')+','+(s?s.nisn:'-')+','+(k?k.nama:'-')+','+p.tanggal+','+(p.waktu||'-')+','+p.status+','+(p.keterangan||'-')+'\n';
+    const wm=p.waktuMasuk||p.waktu||'';
+    const wp=p.waktuPulang||'';
+    csv+=(i+1)+','+(s?s.nama:'-')+','+(s?s.nisn:'-')+','+(k?k.nama:'-')+','+p.tanggal+','+wm+','+wp+','+p.status+','+(p.keterangan||'-')+'\n';
   });
   const blob=new Blob([csv],{type:'text/csv'});
   const url=URL.createObjectURL(blob);
@@ -1424,7 +1476,8 @@ async function cloudPullAll(){
     if(data.kelas) _DBraw.set('kelas', data.kelas.map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})));
     if(data.siswa) _DBraw.set('siswa', data.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||''})));
     if(data.guru) _DBraw.set('teachers', data.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})));
-    if(data.presensi) _DBraw.set('presensi', data.presensi.map(p=>({id:p.id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktu:p.waktu||'',keterangan:p.keterangan||''})));
+    if(data.presensi) _DBraw.set('presensi', data.presensi.map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||p.waktu||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
+    if(data.presensiGuru) _DBraw.set('teacherAttendance', data.presensiGuru.map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
     toast('Data berhasil ditarik dari cloud');
     render();
   }catch(e){
@@ -1543,11 +1596,13 @@ function loadPresensiGuru(){
   const teachers=(DB.get('teachers')||[]).filter(t=>t.statusAktif!==false);
   const att=DB.get('teacherAttendance')||[];
   if(teachers.length===0){document.getElementById('presensiGuruList').innerHTML='<p style="color:#6b7280;font-size:13px">Belum ada data guru. Tambahkan guru terlebih dahulu.</p>';return}
-  let h2='<table><tr><th>No</th><th>Nama</th><th>NIP</th><th>Status</th><th>Keterangan</th></tr>';
+  let h2='<table><tr><th>No</th><th>Nama</th><th>NIP</th><th>Status</th><th>Masuk</th><th>Pulang</th><th>Keterangan</th></tr>';
   teachers.forEach((t,i)=>{
     const existing=att.find(a=>a.guruId===t.id&&a.tanggal===tanggal);
     const st=existing?existing.status:'hadir';
     const ket=existing?existing.keterangan||'':'';
+    const wMasuk=existing?(existing.waktuMasuk||existing.waktu||''):'';
+    const wPulang=existing?(existing.waktuPulang||''):'';
     h2+='<tr><td>'+(i+1)+'</td><td>'+t.nama+'</td><td>'+t.nip+'</td><td>'+
     '<select id="stg-'+t.id+'" style="max-width:120px">'+
       '<option value="hadir" '+(st==='hadir'?'selected':'')+'>Hadir</option>'+
@@ -1556,7 +1611,10 @@ function loadPresensiGuru(){
       '<option value="sakit" '+(st==='sakit'?'selected':'')+'>Sakit</option>'+
       '<option value="dinas" '+(st==='dinas'?'selected':'')+'>Dinas Luar</option>'+
       '<option value="alpha" '+(st==='alpha'?'selected':'')+'>Alpha</option>'+
-    '</select></td><td><input id="ketg-'+t.id+'" value="'+ket+'" placeholder="Keterangan" style="max-width:150px;padding:4px 8px"></td></tr>';
+    '</select></td>'+
+    '<td><div style="display:flex;gap:4px;align-items:center"><input type="time" id="wmg-'+t.id+'" value="'+wMasuk+'" style="max-width:90px;padding:4px 6px"><button onclick="setNowTime(\''+t.id+'\',\'wmg\')" class="btn btn-secondary" style="padding:2px 6px;font-size:11px">Now</button></div></td>'+
+    '<td><div style="display:flex;gap:4px;align-items:center"><input type="time" id="wpg-'+t.id+'" value="'+wPulang+'" style="max-width:90px;padding:4px 6px"><button onclick="setNowTime(\''+t.id+'\',\'wpg\')" class="btn btn-secondary" style="padding:2px 6px;font-size:11px">Now</button></div></td>'+
+    '<td><input id="ketg-'+t.id+'" value="'+ket+'" placeholder="Keterangan" style="max-width:150px;padding:4px 8px"></td></tr>';
   });
   h2+='</table>';
   document.getElementById('presensiGuruList').innerHTML=h2;
@@ -1572,13 +1630,14 @@ function simpanPresensiGuru(){
     if(!el)return;
     const status=el.value;
     const keterangan=ketEl?ketEl.value:'';
-    const waktu=(status==='hadir'||status==='terlambat')?new Date().toLocaleTimeString('id-ID'):'';
+    const wMasuk=document.getElementById('wmg-'+t.id)?document.getElementById('wmg-'+t.id).value:'';
+    const wPulang=document.getElementById('wpg-'+t.id)?document.getElementById('wpg-'+t.id).value:'';
     const idx=att.findIndex(a=>a.guruId===t.id&&a.tanggal===tanggal);
-    if(idx>=0){att[idx]={...att[idx],status,waktu,keterangan}}
-    else{att.push({guruId:t.id,tanggal,status,waktu,keterangan})}
+    if(idx>=0){att[idx]={...att[idx],status,waktuMasuk:wMasuk,waktuPulang:wPulang,keterangan}}
+    else{att.push({guruId:t.id,tanggal,status,waktuMasuk:wMasuk,waktuPulang:wPulang,keterangan})}
   });
   DB.set('teacherAttendance',att);
-  toast('Presensi guru berhasil disimpan!');
+  toast('Presensi guru disimpan');
 }
 
 // ===== REKAP PRESENSI GURU =====
@@ -1607,11 +1666,13 @@ function loadRekapGuru(){
   if(statusFilter!=='all')filtered=filtered.filter(a=>a.status===statusFilter);
   const settings=DB.get('settings')||{};
   let h3='<div style="text-align:center;margin-bottom:16px"><h3 style="margin:0">REKAP PRESENSI GURU</h3><p style="margin:4px 0">'+(settings.namaSekolah||'Madrasah')+'</p><p style="margin:0;font-size:12px">Periode: '+start+' s/d '+end+'</p></div>';
-  h3+='<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>NIP</th><th>Tanggal</th><th>Jam</th><th>Status</th><th>Keterangan</th></tr>';
-  if(filtered.length===0){h3+='<tr><td colspan="7" style="text-align:center;color:#6b7280">Tidak ada data</td></tr>'}
+  h3+='<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>NIP</th><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Keterangan</th></tr>';
+  if(filtered.length===0){h3+='<tr><td colspan="8" style="text-align:center;color:#6b7280">Tidak ada data</td></tr>'}
   filtered.forEach((a,i)=>{
     const t=teachers.find(x=>x.id===a.guruId);
-    h3+='<tr><td>'+(i+1)+'</td><td>'+(t?t.nama:'-')+'</td><td>'+(t?t.nip:'-')+'</td><td>'+a.tanggal+'</td><td>'+(a.waktu||'-')+'</td><td><span class="badge badge-'+(a.status==='hadir'||a.status==='terlambat'?'hadir':a.status==='sakit'?'sakit':a.status==='izin'||a.status==='dinas'?'izin':'alpha')+'">'+a.status+'</span></td><td>'+(a.keterangan||'-')+'</td></tr>';
+    const wm=a.waktuMasuk||a.waktu||'-';
+    const wp=a.waktuPulang||'-';
+    h3+='<tr><td>'+(i+1)+'</td><td>'+(t?t.nama:'-')+'</td><td>'+(t?t.nip:'-')+'</td><td>'+a.tanggal+'</td><td>'+wm+'</td><td>'+wp+'</td><td><span class="badge badge-'+(a.status==='hadir'||a.status==='terlambat'?'hadir':a.status==='sakit'?'sakit':a.status==='izin'||a.status==='dinas'?'izin':'alpha')+'">'+a.status+'</span></td><td>'+(a.keterangan||'-')+'</td></tr>';
   });
   h3+='</table></div>';
   h3+='<div style="margin-top:40px;display:flex;justify-content:space-between"><div style="text-align:center"><p>Mengetahui,</p><p>Kepala Madrasah</p><br><br><br><p>_________________</p></div><div style="text-align:center"><p>&nbsp;</p><p>Operator/Admin</p><br><br><br><p>_________________</p></div></div>';
@@ -1627,10 +1688,12 @@ if(_mhdIsTrialActive()){toast('Export CSV Guru hanya tersedia untuk akun FULL. C
   const att=DB.get('teacherAttendance')||[];
   let filtered=att.filter(a=>a.tanggal>=start&&a.tanggal<=end);
   if(statusFilter!=='all')filtered=filtered.filter(a=>a.status===statusFilter);
-  let csv='No,Nama,NIP,Tanggal,Jam,Status,Keterangan\n';
+  let csv='No,Nama,NIP,Tanggal,Masuk,Pulang,Status,Keterangan\n';
   filtered.forEach((a,i)=>{
     const t=teachers.find(x=>x.id===a.guruId);
-    csv+=(i+1)+','+(t?t.nama:'-')+','+(t?t.nip:'-')+','+a.tanggal+','+(a.waktu||'-')+','+a.status+','+(a.keterangan||'-')+'\n';
+    const wm=a.waktuMasuk||a.waktu||'';
+    const wp=a.waktuPulang||'';
+    csv+=(i+1)+','+(t?t.nama:'-')+','+(t?t.nip:'-')+','+a.tanggal+','+wm+','+wp+','+a.status+','+(a.keterangan||'-')+'\n';
   });
   const blob=new Blob([csv],{type:'text/csv'});
   const url=URL.createObjectURL(blob);
