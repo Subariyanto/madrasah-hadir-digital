@@ -731,7 +731,13 @@ function renderSiswa(){
   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'+
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-size:13px;color:#6b7280">Total: '+siswa.length+' siswa</span>'+
     '<input id="searchSiswa" placeholder="Cari nama/NISN..." value="'+search+'" oninput="render()" style="max-width:180px;padding:6px 10px"></div>'+
-    '<button class="btn btn-primary" onclick="showAddSiswa()">+ Tambah Siswa</button>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+      '<button class="btn btn-secondary" onclick="downloadTemplateSiswa()" title="Unduh template CSV">⬇️ Template</button>'+
+      '<button class="btn btn-secondary" onclick="document.getElementById(\'fileImportSiswa\').click()" title="Import CSV">📥 Import</button>'+
+      '<input type="file" id="fileImportSiswa" accept=".csv" style="display:none" onchange="importSiswaCSV(event)">'+
+      '<button class="btn btn-secondary" onclick="exportSiswaCSV()" title="Export CSV">📤 Export</button>'+
+      '<button class="btn btn-primary" onclick="showAddSiswa()">+ Tambah Siswa</button>'+
+    '</div>'+
   '</div>'+
   (filtered.length===0?'<p style="color:#6b7280;font-size:13px">Belum ada data siswa. Klik tombol Tambah Siswa untuk mulai.</p>':
   '<div style="overflow-x:auto"><table><tr><th>No</th><th>Nama</th><th>NISN</th><th>Kelas</th><th>Aksi</th></tr>'+
@@ -783,6 +789,148 @@ function hapusSiswa(id){
   if(!confirmDialog('Hapus siswa ini?'))return;
   DB.set('siswa',(DB.get('siswa')||[]).filter(s=>s.id!==id));render();
   toast('Siswa berhasil dihapus');
+}
+
+// ===== TEMPLATE / IMPORT / EXPORT SISWA (CSV) =====
+function _csvEscape(v){
+  if(v==null)return '';
+  v=String(v);
+  if(v.indexOf(',')>=0||v.indexOf('"')>=0||v.indexOf('\n')>=0||v.indexOf('\r')>=0){
+    return '"'+v.replace(/"/g,'""')+'"';
+  }
+  return v;
+}
+function _csvParseLine(line){
+  const out=[];let cur='';let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(inQ){
+      if(c=='"'){
+        if(line[i+1]=='"'){cur+='"';i++;}
+        else{inQ=false;}
+      }else{cur+=c;}
+    }else{
+      if(c==',') {out.push(cur);cur='';}
+      else if(c=='"'){inQ=true;}
+      else{cur+=c;}
+    }
+  }
+  out.push(cur);
+  return out;
+}
+function _csvParse(text){
+  // Normalize line endings, split per record (handle quoted multi-line not strictly)
+  const rows=[];
+  let buf='';let inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(c=='"'){inQ=!inQ;buf+=c;}
+    else if((c=='\n'||c=='\r')&&!inQ){
+      if(c=='\r'&&text[i+1]=='\n')i++;
+      if(buf.trim().length)rows.push(_csvParseLine(buf));
+      buf='';
+    }else{buf+=c;}
+  }
+  if(buf.trim().length)rows.push(_csvParseLine(buf));
+  return rows;
+}
+function _downloadCSV(filename,csvText){
+  // BOM untuk Excel detect UTF-8
+  const blob=new Blob(['\uFEFF'+csvText],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},100);
+}
+function downloadTemplateSiswa(){
+  const kelas=DB.get('kelas')||[];
+  const sampleKelas=kelas[0]?kelas[0].nama:'X IPA';
+  const header=['nama','nisn','kelas','nama_ortu','no_wa_ortu'];
+  const sample=[
+    ['Ahmad Fauzi','0012345678',sampleKelas,'Bapak Hasan','081234567890'],
+    ['Siti Aminah','0023456789',sampleKelas,'Ibu Fatimah','081298765432']
+  ];
+  const csv=[header.map(_csvEscape).join(',')].concat(sample.map(r=>r.map(_csvEscape).join(','))).join('\n');
+  _downloadCSV('template-siswa.csv',csv);
+  toast('Template diunduh. Isi data, lalu klik Import.');
+}
+function exportSiswaCSV(){
+  const siswa=DB.get('siswa')||[];
+  const kelas=DB.get('kelas')||[];
+  if(siswa.length===0){toast('Belum ada data siswa untuk di-export','warning');return;}
+  const header=['nama','nisn','kelas','nama_ortu','no_wa_ortu'];
+  const rows=siswa.map(s=>{
+    const k=kelas.find(x=>x.id===s.kelas);
+    return [s.nama||'',s.nisn||'',k?k.nama:'',s.namaOrtu||'',s.noWaOrtu||''];
+  });
+  const csv=[header.map(_csvEscape).join(',')].concat(rows.map(r=>r.map(_csvEscape).join(','))).join('\n');
+  const ts=new Date().toISOString().slice(0,10);
+  _downloadCSV('data-siswa-'+ts+'.csv',csv);
+  toast('Berhasil export '+siswa.length+' siswa');
+}
+function importSiswaCSV(ev){
+  const file=ev.target.files&&ev.target.files[0];
+  ev.target.value='';
+  if(!file)return;
+  if(isTrialLockedNow()){notifyTrialLockedNow();return;}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const text=String(e.target.result||'').replace(/^\uFEFF/,'');
+      const rows=_csvParse(text);
+      if(rows.length<2){toast('File CSV kosong atau tidak valid','error');return;}
+      const header=rows[0].map(h=>String(h).trim().toLowerCase());
+      const idxNama=header.indexOf('nama');
+      const idxNisn=header.indexOf('nisn');
+      const idxKelas=header.indexOf('kelas');
+      const idxOrtu=header.indexOf('nama_ortu');
+      const idxWa=header.indexOf('no_wa_ortu');
+      if(idxNama<0||idxKelas<0){
+        toast('Header CSV harus minimal: nama, kelas. Gunakan Template.','error');
+        return;
+      }
+      let kelas=DB.get('kelas')||[];
+      let siswa=DB.get('siswa')||[];
+      let added=0,updated=0,skipped=0,newKelas=0;
+      for(let i=1;i<rows.length;i++){
+        const r=rows[i];
+        const nama=(r[idxNama]||'').trim();
+        if(!nama){skipped++;continue;}
+        const nisn=idxNisn>=0?(r[idxNisn]||'').trim():'';
+        const namaKelas=(r[idxKelas]||'').trim();
+        const namaOrtu=idxOrtu>=0?(r[idxOrtu]||'').trim():'';
+        const noWaOrtu=idxWa>=0?(r[idxWa]||'').trim():'';
+        let k=kelas.find(x=>x.nama.toLowerCase()===namaKelas.toLowerCase());
+        if(!k&&namaKelas){
+          k={id:'k'+Date.now()+'_'+i,nama:namaKelas};
+          kelas.push(k);newKelas++;
+        }
+        const kelasId=k?k.id:'';
+        // Match by NISN (kalau ada) atau by nama+kelas
+        let existing=null;
+        if(nisn)existing=siswa.find(s=>s.nisn===nisn);
+        if(!existing)existing=siswa.find(s=>s.nama.toLowerCase()===nama.toLowerCase()&&s.kelas===kelasId);
+        if(existing){
+          existing.nama=nama;existing.nisn=nisn;existing.kelas=kelasId;
+          existing.namaOrtu=namaOrtu;existing.noWaOrtu=noWaOrtu;
+          updated++;
+        }else{
+          siswa.push({id:'s'+Date.now()+'_'+i,nama,nisn,kelas:kelasId,namaOrtu,noWaOrtu});
+          added++;
+        }
+      }
+      if(newKelas>0)DB.set('kelas',kelas);
+      DB.set('siswa',siswa);
+      render();
+      toast('Import selesai: +'+added+' baru, '+updated+' update'+(newKelas?', '+newKelas+' kelas baru':'')+(skipped?', '+skipped+' baris dilewati':''));
+    }catch(err){
+      console.error(err);
+      toast('Gagal import CSV: '+err.message,'error');
+    }
+  };
+  reader.onerror=function(){toast('Gagal baca file','error');};
+  reader.readAsText(file,'utf-8');
 }
 
 // ===== DATA KELAS =====
