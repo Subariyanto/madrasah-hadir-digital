@@ -19,6 +19,30 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<!-- Supabase Cloud config (optional) -->
+<script>
+  // Konfigurasi Supabase dari URL param, localStorage, atau hard-coded
+  (function(){
+    var qp = new URLSearchParams(location.search);
+    if(qp.get('supabase')){
+      try{
+        var cfg = JSON.parse(atob(qp.get('supabase')));
+        if(cfg.url) window.MHD_SUPABASE_URL = cfg.url;
+        if(cfg.key) window.MHD_SUPABASE_ANON_KEY = cfg.key;
+        localStorage.setItem('mhd_supabase_cfg', JSON.stringify(cfg));
+      }catch(e){}
+    } else {
+      try{
+        var saved = JSON.parse(localStorage.getItem('mhd_supabase_cfg')||'null');
+        if(saved){
+          window.MHD_SUPABASE_URL = saved.url;
+          window.MHD_SUPABASE_ANON_KEY = saved.key;
+        }
+      }catch(e){}
+    }
+  })();
+</script>
+<script src="supabase-client.js"></script>
 <script>tailwind.config={theme:{extend:{colors:{primary:'#16a34a',primaryDark:'#15803d',primaryLight:'#bbf7d0'}}}}</script>
 <style>
 body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f0fdf4}
@@ -1223,7 +1247,94 @@ function renderPengaturan(){
   '<h3 style="margin:0 0 16px;font-size:15px;color:#dc2626">Reset Data</h3>'+
   '<p style="font-size:13px;color:#6b7280;margin-bottom:10px">Hapus semua data presensi dan siswa. Lisensi tetap aktif.</p>'+
   '<button class="btn btn-danger" onclick="resetData()">\u{1F5D1}\uFE0F Reset Data Presensi & Siswa</button>'+
+  '</div>'+
+  // ===== CLOUD SYNC =====
+  '<hr style="margin:20px 0;border-color:#e5e7eb">'+
+  '<h3 style="margin:0 0 16px;font-size:15px;color:#15803d">\u2601\uFE0F Cloud Sync (Multi-Device)</h3>'+
+  (window.MHDCloud && window.MHDCloud.enabled
+    ? '<div style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#166534">\u2705 Cloud aktif. Data otomatis sync antar device.</div>'+
+      '<button class="btn btn-primary" onclick="cloudPushAll()" style="margin-right:6px">\u2B06\uFE0F Upload Data Lokal ke Cloud</button>'+
+      '<button class="btn btn-secondary" onclick="cloudPullAll()">\u2B07\uFE0F Tarik Data dari Cloud</button>'+
+      '<button class="btn btn-danger" onclick="cloudDisable()" style="margin-left:6px">\u274C Nonaktifkan Cloud</button>'
+    : '<p style="font-size:13px;color:#6b7280;margin-bottom:10px">Aktifkan Cloud Sync untuk berbagi database antar laptop & HP.</p>'+
+      '<button class="btn btn-primary" onclick="showCloudConfig()">\u2699\uFE0F Konfigurasi Cloud</button>')+
   '</div>';
+}
+function showCloudConfig(){
+  const cur=JSON.parse(localStorage.getItem('mhd_supabase_cfg')||'null')||{};
+  const html='<div class="overlay" onclick="if(event.target===this)this.remove()"><div class="modal">'+
+    '<h3 style="margin:0 0 12px;color:#15803d">\u2601\uFE0F Konfigurasi Cloud (Supabase)</h3>'+
+    '<p style="font-size:12px;color:#6b7280;margin-bottom:12px">Masukkan URL & Anon Key Supabase. Halaman akan reload setelah simpan.</p>'+
+    '<label style="font-size:13px;color:#374151">Supabase URL</label>'+
+    '<input id="sbUrl" placeholder="https://xxx.supabase.co" value="'+(cur.url||'')+'" style="margin-bottom:10px">'+
+    '<label style="font-size:13px;color:#374151">Anon Key</label>'+
+    '<input id="sbKey" placeholder="eyJ..." value="'+(cur.key||'')+'" style="margin-bottom:16px">'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end">'+
+      '<button class="btn btn-secondary" onclick="this.closest(\'.overlay\').remove()">Batal</button>'+
+      '<button class="btn btn-primary" onclick="saveCloudConfig()">Simpan & Reload</button>'+
+    '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function saveCloudConfig(){
+  const url=document.getElementById('sbUrl').value.trim();
+  const key=document.getElementById('sbKey').value.trim();
+  if(!url || !key){toast('URL & Key wajib diisi','error');return;}
+  localStorage.setItem('mhd_supabase_cfg', JSON.stringify({url,key}));
+  toast('Cloud config tersimpan. Reload...');
+  setTimeout(()=>location.reload(), 800);
+}
+function cloudDisable(){
+  if(!confirm('Nonaktifkan Cloud Sync? Data lokal tetap ada, tapi tidak akan sync antar device.'))return;
+  localStorage.removeItem('mhd_supabase_cfg');
+  toast('Cloud dinonaktifkan. Reload...');
+  setTimeout(()=>location.reload(), 800);
+}
+async function cloudPushAll(){
+  if(!window.MHDCloud||!window.MHDCloud.enabled){toast('Cloud belum aktif','error');return;}
+  const lisensi=_DBraw.get('lisensi');
+  if(!lisensi||!lisensi.kode){toast('Belum aktivasi','error');return;}
+  toast('Upload ke cloud...','warning');
+  try{
+    let m = await window.MHDCloud.findMadrasahByKode(lisensi.kode);
+    if(!m){
+      m = await window.MHDCloud.aktivasi(lisensi.kode, lisensi.madrasah, lisensi.alamat);
+    }
+    if(!m){toast('Gagal cari/buat madrasah di cloud','error');return;}
+    const payload = {
+      kelas: DB.get('kelas')||[],
+      siswa: DB.get('siswa')||[],
+      guru: DB.get('teachers')||[],
+      presensi: DB.get('presensi')||[]
+    };
+    const results = await window.MHDCloud.pushAll(m.id, payload);
+    const ok = results.filter(r=>r.status==='fulfilled').length;
+    const fail = results.length - ok;
+    toast('Upload selesai: '+ok+' sukses'+(fail?', '+fail+' gagal':''));
+  }catch(e){
+    console.error(e);
+    toast('Gagal upload: '+e.message,'error');
+  }
+}
+async function cloudPullAll(){
+  if(!window.MHDCloud||!window.MHDCloud.enabled){toast('Cloud belum aktif','error');return;}
+  const lisensi=_DBraw.get('lisensi');
+  if(!lisensi||!lisensi.kode){toast('Belum aktivasi','error');return;}
+  if(!confirm('Tarik data dari cloud akan menimpa data lokal. Lanjut?'))return;
+  toast('Mengambil data dari cloud...','warning');
+  try{
+    const m = await window.MHDCloud.findMadrasahByKode(lisensi.kode);
+    if(!m){toast('Madrasah tidak ditemukan di cloud','error');return;}
+    const data = await window.MHDCloud.pullAll(m.id);
+    if(data.kelas) _DBraw.set('kelas', data.kelas.map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})));
+    if(data.siswa) _DBraw.set('siswa', data.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||''})));
+    if(data.guru) _DBraw.set('teachers', data.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})));
+    if(data.presensi) _DBraw.set('presensi', data.presensi.map(p=>({id:p.id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktu:p.waktu||'',keterangan:p.keterangan||''})));
+    toast('Data berhasil ditarik dari cloud');
+    render();
+  }catch(e){
+    console.error(e);
+    toast('Gagal pull: '+e.message,'error');
+  }
 }
 function saveSettings(){
   const settings=DB.get('settings')||{};

@@ -4,7 +4,7 @@
  *  - CDN libs (Tailwind, html5-qrcode, qrcodejs, jspdf): cache-first dengan revalidate
  *  - Static assets (icons, manifest): cache-first
  */
-const VERSION = 'mhd-v1.6.2-admin-persist-login';
+const VERSION = 'mhd-v1.7.0-cloud-sync';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -12,6 +12,7 @@ const SHELL_ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './supabase-client.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png'
