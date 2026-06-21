@@ -333,20 +333,39 @@ function initData(){
 
 // ===== AUTH =====
 let loggedIn=false;
+function isAdminMode(){
+  try{return new URLSearchParams(window.location.search).get('mode')==='admin';}catch(e){return false;}
+}
 function checkAuth(){
   loggedIn=sessionStorage.getItem('loggedIn')==='true';
   if(loggedIn){
     document.getElementById('loginScreen').style.display='none';
     initApp();
-  } else {
-    document.getElementById('loginScreen').style.display='flex';
+    return;
   }
+  // Admin mode: paksa login screen
+  if(isAdminMode()){
+    document.getElementById('loginScreen').style.display='flex';
+    return;
+  }
+  // User madrasah dengan lisensi (FULL atau TRIAL): auto-login
+  const lisensi=_DBraw.get('lisensi');
+  if(lisensi&&(lisensi.tier==='full'||lisensi.tier==='trial')){
+    sessionStorage.setItem('loggedIn','true');
+    sessionStorage.setItem('role','madrasah');
+    loggedIn=true;
+    document.getElementById('loginScreen').style.display='none';
+    initApp();
+    return;
+  }
+  document.getElementById('loginScreen').style.display='flex';
 }
 function doLogin(){
   const u=document.getElementById('loginUser').value;
   const p=document.getElementById('loginPass').value;
   const cred=DB.get('credentials');
   if(u===cred.username&&p===cred.password){
+    sessionStorage.setItem('role',u==='admin'?'admin':'madrasah');
     sessionStorage.setItem('loggedIn','true');loggedIn=true;
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('loginError').style.display='none';
@@ -379,7 +398,16 @@ function ensureAdminLisensi(){
     _DBraw.set('lisensi',{kode:'ADMIN-MASTER',madrasah:'Admin',alamat:'-',berlaku:'2099-12-31',aktivasiTanggal:new Date().toISOString().slice(0,10),tier:'full'});
   }
 }
-function logout(){sessionStorage.removeItem('loggedIn');location.reload()}
+function logout(){
+  const role=sessionStorage.getItem('role');
+  sessionStorage.removeItem('loggedIn');
+  sessionStorage.removeItem('role');
+  if(role!=='admin'){
+    // User madrasah: hapus lisensi → kembali ke aktivasi screen
+    try{_DBraw.del('lisensi');}catch(e){}
+  }
+  location.reload();
+}
 
 // ===== NAVIGATION =====
 let currentPage='dashboard';
