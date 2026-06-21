@@ -1488,10 +1488,16 @@ function boot(){
   // Cek apakah ini halaman admin (?mode=admin)
   var isAdminMode = window.location.search.indexOf('mode=admin') !== -1;
   if(isAdminMode){
-    // Admin: tampilkan login screen
+    // Admin: kalau sudah login → langsung masuk dashboard
+    if(localStorage.getItem('loggedIn')==='true'){
+      loggedIn=true;
+      ensureAdminLisensi();
+      initApp();
+      return;
+    }
+    // Belum login → tampilkan login screen
     document.getElementById('loginScreen').style.display='flex';
     document.getElementById('aktivasiScreen').style.display='none';
-    // Pre-fill credentials untuk admin
     setTimeout(function(){
       var u=document.getElementById('loginUser'); if(u) u.value='admin';
     }, 100);
