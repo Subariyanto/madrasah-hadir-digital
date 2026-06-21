@@ -137,6 +137,18 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 </div>
 
 <!-- LOGIN SCREEN -->
+<div id="welcomeScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:250;align-items:center;justify-content:center">
+<div class="card" style="max-width:380px;width:90%;text-align:center">
+<h2 style="color:#15803d;margin-bottom:4px">🕌 <span id="welcomeTitle">Madrasah Hadir Digital</span></h2>
+<p style="color:#6b7280;font-size:13px;margin-bottom:8px">Anda telah logout</p>
+<p id="welcomeMadrasah" style="color:#374151;font-size:14px;margin-bottom:16px;font-weight:600"></p>
+<button class="btn btn-primary" style="width:100%" onclick="doMasukKembali()">🔓 Masuk Kembali</button>
+<button class="btn btn-danger" style="width:100%;margin-top:8px" onclick="hapusAktivasi()">🗑️ Ganti Madrasah / Hapus Aktivasi</button>
+<p style="color:#6b7280;font-size:11px;margin-top:16px">Aplikasi ini dibuat oleh:<br><b>Subariyanto, S.Pd, M.Pd.I.</b><br>Ketua Pokjawas Kab. Jember</p>
+</div>
+</div>
+
+<!-- LOGIN SCREEN -->
 <div id="loginScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:200;align-items:center;justify-content:center">
 <div class="card" style="max-width:360px;width:90%;text-align:center">
 <h2 style="color:#15803d;margin-bottom:4px">🕌 <span id="loginTitle">Madrasah Hadir Digital</span></h2>
@@ -475,8 +487,18 @@ function checkAuth(){
     document.getElementById('loginScreen').style.display='flex';
     return;
   }
-  // User madrasah dengan lisensi (FULL atau TRIAL): auto-login
   const lisensi=_DBraw.get('lisensi');
+  // User madrasah baru saja logout: tampilkan welcome screen, tunggu klik "Masuk Kembali"
+  if(localStorage.getItem('mhd_logged_out')==='1' && lisensi){
+    const ws=document.getElementById('welcomeScreen');
+    if(ws){
+      const m=document.getElementById('welcomeMadrasah');
+      if(m)m.textContent=lisensi.nama||'';
+      ws.style.display='flex';
+    }
+    return;
+  }
+  // User madrasah dengan lisensi (FULL atau TRIAL): auto-login
   if(lisensi&&(lisensi.tier==='full'||lisensi.tier==='trial')){
     localStorage.setItem('loggedIn','true');
     localStorage.setItem('role','madrasah');
@@ -534,17 +556,32 @@ function logout(){
     location.reload();
     return;
   }
-  // User madrasah: cukup keluar sesi, lisensi tetap supaya tidak perlu aktivasi ulang
-  if(!confirm('Keluar dari aplikasi? Aktivasi madrasah tetap tersimpan, tinggal masuk lagi tanpa kode.'))return;
+  // User madrasah: keluar sesi, lisensi tetap. Tampilkan welcome screen.
+  if(!confirm('Keluar dari aplikasi? Aktivasi madrasah tetap tersimpan, tinggal klik Masuk Kembali tanpa kode.'))return;
   localStorage.removeItem('loggedIn');
   localStorage.removeItem('role');
+  localStorage.setItem('mhd_logged_out','1');
   location.reload();
+}
+function doMasukKembali(){
+  localStorage.removeItem('mhd_logged_out');
+  const lis=_DBraw.get('lisensi');
+  if(!lis){
+    location.reload();
+    return;
+  }
+  localStorage.setItem('loggedIn','true');
+  localStorage.setItem('role','madrasah');
+  document.getElementById('welcomeScreen').style.display='none';
+  loggedIn=true;
+  initApp();
 }
 function hapusAktivasi(){
   if(!confirm('Hapus aktivasi madrasah ini?\nAplikasi akan kembali ke layar aktivasi dan harus masukkan kode lagi.\n\nData siswa/guru/presensi TIDAK ikut dihapus.'))return;
   try{_DBraw.del('lisensi');}catch(e){}
   localStorage.removeItem('loggedIn');
   localStorage.removeItem('role');
+  localStorage.removeItem('mhd_logged_out');
   toast('Aktivasi dihapus');
   setTimeout(()=>location.reload(), 600);
 }
