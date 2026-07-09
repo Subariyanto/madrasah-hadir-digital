@@ -553,6 +553,7 @@ function logout(){
     if(!confirm('Logout admin?'))return;
     localStorage.removeItem('loggedIn');
     localStorage.removeItem('role');
+    _DBraw.del('lisensi');
     location.reload();
     return;
   }
