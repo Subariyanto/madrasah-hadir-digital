@@ -676,6 +676,7 @@ function renderHome(){
     {p:'rekap',ic:'\u{1F4CB}',lbl:'Rekap Siswa'},
     {p:'rekapGuru',ic:'\u{1F4CB}',lbl:'Rekap Guru'},
     {p:'dashboard',ic:'\u{1F4CA}',lbl:'Dashboard',cls:'tile-violet'},
+    {p:'panduan',ic:'\u{1F4D6}',lbl:'Panduan',cls:'tile-slate'},
     {p:'pengaturan',ic:'\u{2699}\u{FE0F}',lbl:'Pengaturan',cls:'tile-slate'}
   ];
   const grid=tiles.map(t=>'<div class="menu-tile-wrap"><a href="#" class="menu-tile '+(t.cls||'')+'" onclick="nav(\''+t.p+'\');return false;"><div class="ico">'+t.ic+'</div><div class="lbl">'+t.lbl+'</div></a></div>').join('');
@@ -1393,6 +1394,147 @@ if(_mhdIsTrialActive()){toast('Export PDF hanya tersedia untuk akun FULL. Cetak 
   _mhdStampPdfTrial(doc);
   doc.save('rekap-presensi-'+start+'.pdf');
   toast('PDF berhasil diexport');
+}
+
+// ===== PANDUAN PENGGUNAAN =====
+function renderPanduan(){
+  return `
+<div class="card" style="margin-bottom:16px">
+<h3 style="font-size:16px;color:#15803d;margin:0 0 4px">📖 Panduan Penggunaan</h3>
+<p style="font-size:13px;color:#6b7280;margin:0 0 16px">Madrasah Hadir Digital — Sistem Presensi</p>
+
+<div style="display:flex;flex-direction:column;gap:16px">
+
+<!-- AKTIVASI -->
+<div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">🔑 1. Aktivasi Aplikasi</h4>
+<div style="font-size:13px;color:#374151;line-height:1.7">
+<p>Setiap madrasah mendapat <strong>kode aktivasi</strong> unik dari admin (Subariyanto).</p>
+<p><strong>Langkah:</strong></p>
+<ol style="padding-left:20px;margin:4px 0">
+<li>Buka aplikasi → akan muncul layar <em>"Aktivasi Aplikasi"</em></li>
+<li>Masukkan kode aktivasi (contoh: <code style="background:#f0fdf4;padding:2px 6px;border-radius:4px;font-size:12px">MHD-ALHIKMAH-2026</code>)</li>
+<li>Atau klik <strong>"Coba Gratis 5 Hari"</strong> untuk trial tanpa kode</li>
+<li>Setelah aktivasi, aplikasi langsung bisa digunakan</li>
+</ol>
+<p style="font-size:12px;color:#6b7280;margin-top:8px">⚠️ Trial habis → mode read-only. Data tetap bisa dibuka tapi tidak bisa tambah/ubah/hapus. Hubungi Subariyanto untuk aktivasi kode FULL.</p>
+</div>
+</div>
+
+<!-- DATA SISWA & KELAS -->
+<div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">👨‍🎓 2. Data Siswa & Kelas</h4>
+<div style="font-size:13px;color:#374151;line-height:1.7">
+<p>Sebelum presensi, pastikan data siswa dan kelas sudah diinput:</p>
+<ul style="padding-left:20px;margin:4px 0">
+<li><strong>Data Kelas:</strong> tambah/edit nama kelas (contoh: X-A, XI-B, XII-IPA)</li>
+<li><strong>Data Siswa:</strong> tambah siswa dengan NIS, nama, kelas. Bisa import CSV (format: NIS,Nama,Kelas)</li>
+<li>Setiap siswa otomatis punya <strong>kode QR unik</strong> untuk scan presensi</li>
+</ul>
+</div>
+</div>
+
+<!-- PRESENSI SISWA -->
+<div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">✅ 3. Presensi Siswa</h4>
+<div style="font-size:13px;color:#374151;line-height:1.7">
+<p>Dua cara melakukan presensi siswa:</p>
+<p><strong>A. Presensi Manual</strong></p>
+<ul style="padding-left:20px;margin:4px 0">
+<li>Pilih <strong>kelas</strong> → muncul daftar siswa</li>
+<li>Klik status tiap siswa: Hadir / Sakit / Izin / Alpha / Terlambat / Dinas</li>
+<li>Status tersimpan otomatis. Bisa diubah kapan saja.</li>
+</ul>
+<p style="margin-top:8px"><strong>B. Scan QR</strong></p>
+<ul style="padding-left:20px;margin:4px 0">
+<li>Pastikan kamera HP/laptop aktif</li>
+<li>Arahkan ke <strong>kartu QR siswa</strong> → data langsung tercatat "Hadir"</li>
+<li>Cocok untuk presensi cepat di pagi hari</li>
+<li>Klik <strong>"Ganti Kamera"</strong> jika kamera tidak muncul</li>
+</ul>
+</div>
+</div>
+
+<!-- CETAK KARTU QR -->
+<div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">🪪 4. Cetak Kartu QR Siswa</h4>
+<div style="font-size:13px;color:#374151;line-height:1.7">
+<ul style="padding-left:20px;margin:4px 0">
+<li>Pilih kelas → muncul kartu QR semua siswa dalam grid</li>
+<li>Klik <strong>"Cetak Semua Kartu"</strong> untuk print seluruh kartu (format A4, 8 kartu per halaman)</li>
+<li>Bisa juga cetak per siswa dengan klik kartu individual</li>
+<li>Kartu dipotong dan dibagikan ke siswa untuk scan harian</li>
+</ul>
+</div>
+</div>
+
+<!-- DATA GURU & PRESENSI GURU -->
+<div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">👨‍🏫 5. Data Guru & Presensi Guru</h4>
+<div style="font-size:13px;color:#374151;line-height:1.7">
+<p><strong>Data Guru:</strong> tambah/edit data guru (NIP, nama, mapel, jabatan)</p>
+<p><strong>Presensi Guru:</strong> mirip presensi siswa — pilih manual atau scan QR Guru</p>
+<p><strong>Cetak QR Guru:</strong> setiap guru punya kartu QR untuk scan presensi</p>
+</div>
+</div>
+
+<!-- REKAP & EXPORT -->
+<div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">📋 6. Rekap Presensi</h4>
+<div style="font-size:13px;color:#374151;line-height:1.7">
+<p><strong>Rekap Siswa:</strong></p>
+<ul style="padding-left:20px;margin:4px 0">
+<li>Pilih kelas dan rentang tanggal → tabel rekap muncul</li>
+<li>Lihat rekap: Hadir / Sakit / Izin / Alpha / Terlambat per siswa</li>
+<li><strong>Export PDF</strong> — download laporan rekap siap cetak</li>
+<li><strong>Export Excel (CSV)</strong> — buka di Excel untuk olah data lanjutan</li>
+</ul>
+<p style="margin-top:8px"><strong>Rekap Guru:</strong> format sama, khusus data guru</p>
+</div>
+</div>
+
+<!-- DASHBOARD -->
+<div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">📊 7. Dashboard</h4>
+<div style="font-size:13px;color:#374151;line-height:1.7">
+<ul style="padding-left:20px;margin:4px 0">
+<li>Ringkasan kehadiran siswa & guru <strong>hari ini</strong></li>
+<li>Statistik: Total, Hadir, Terlambat, Izin/Sakit, Alpha, Belum Absen</li>
+<li>Grafik batang kehadiran siswa</li>
+<li>Daftar siswa yang belum presensi</li>
+</ul>
+</div>
+</div>
+
+<!-- PENGATURAN -->
+<div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">⚙️ 8. Pengaturan</h4>
+<div style="font-size:13px;color:#374151;line-height:1.7">
+<ul style="padding-left:20px;margin:4px 0">
+<li><strong>Nama Madrasah:</strong> tampil di header aplikasi & laporan</li>
+<li><strong>Ubah Password:</strong> ganti password login (default: admin123)</li>
+<li><strong>Backup Data:</strong> download seluruh data sebagai file JSON</li>
+<li><strong>Restore Data:</strong> upload file backup untuk pindah device</li>
+<li><strong>Reset Data:</strong> hapus semua data (hati-hati!)</li>
+<li><strong>Info Lisensi:</strong> lihat status lisensi aktif</li>
+</ul>
+</div>
+</div>
+
+<!-- TIPS -->
+<div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px;background:#fefce8">
+<h4 style="font-size:14px;color:#854d0e;margin:0 0 8px">💡 Tips & FAQ</h4>
+<div style="font-size:13px;color:#374151;line-height:1.7">
+<p><strong>Q: Data hilang setelah ganti HP?</strong><br>A: Backup dulu di HP lama (Pengaturan → Backup), lalu restore di HP baru (Pengaturan → Restore).</p>
+<p><strong>Q: Bisa pakai offline?</strong><br>A: Ya, aplikasi ini PWA — bisa di-install di HP/laptop dan dipakai tanpa internet. Klik "Pasang" di banner bawah.</p>
+<p><strong>Q: Scan QR tidak muncul kamera?</strong><br>A: Pastikan izin kamera sudah diaktifkan di browser. Klik "Ganti Kamera" untuk switch kamera depan/belakang.</p>
+<p><strong>Q: Bagaimana cara import data siswa banyak?</strong><br>A: Siapkan file CSV dengan format: <code style="background:#f0fdf4;padding:2px 6px;border-radius:4px;font-size:12px">NIS,Nama,Kelas</code> lalu import di menu Data Siswa.</p>
+<p><strong>Q: Kode aktivasi tidak berlaku?</strong><br>A: Hubungi <strong>Subariyanto, S.Pd, M.Pd.I.</strong> (Ketua Pokjawas Kab. Jember) untuk kode baru.</p>
+</div>
+</div>
+
+</div>
+</div>`;
 }
 
 // ===== PENGATURAN =====
