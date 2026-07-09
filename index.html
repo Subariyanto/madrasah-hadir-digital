@@ -1398,11 +1398,151 @@ if(_mhdIsTrialActive()){toast('Export PDF hanya tersedia untuk akun FULL. Cetak 
 }
 
 // ===== PANDUAN PENGGUNAAN =====
+function downloadPanduanPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  const contentW = pageW - margin * 2;
+  let y = margin;
+
+  // Header
+  doc.setFontSize(18);
+  doc.setTextColor(21, 128, 61);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Madrasah Hadir Digital', pageW / 2, y, { align: 'center' });
+  y += 8;
+  doc.setFontSize(11);
+  doc.setTextColor(107, 114, 128);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Panduan Penggunaan — Sistem Presensi', pageW / 2, y, { align: 'center' });
+  y += 6;
+  doc.setFontSize(7);
+  doc.setTextColor(156, 163, 175);
+  doc.text('Dibuat oleh: Subariyanto, S.Pd, M.Pd.I. — Ketua Pokjawas Kab. Jember', pageW / 2, y, { align: 'center' });
+  y += 8;
+
+  // Garis
+  doc.setDrawColor(21, 128, 61);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageW - margin, y);
+  y += 8;
+
+  function addSection(num, title, body){
+    if (y + 30 > pageH - 15) { doc.addPage(); y = margin; }
+    // Nomor + judul
+    doc.setFontSize(12);
+    doc.setTextColor(21, 128, 61);
+    doc.setFont('helvetica', 'bold');
+    doc.text(num + '. ' + title, margin, y);
+    y += 6;
+    // Body
+    doc.setFontSize(9);
+    doc.setTextColor(55, 65, 81);
+    doc.setFont('helvetica', 'normal');
+    const lines = doc.splitTextToSize(body, contentW);
+    for (let i = 0; i < lines.length; i++) {
+      if (y + 4 > pageH - 15) { doc.addPage(); y = margin; }
+      doc.text(lines[i], margin, y);
+      y += 4;
+    }
+    y += 4;
+  }
+
+  const settings = DB.get('settings') || {};
+  const lisensi = DB.get('lisensi') || {};
+
+  addSection('1', 'Aktivasi Aplikasi',
+    'Setiap madrasah mendapat kode aktivasi unik dari admin (Subariyanto, Ketua Pokjawas Kab. Jember). ' +
+    'Langkah: (1) Buka aplikasi, akan muncul layar "Aktivasi Aplikasi". ' +
+    '(2) Masukkan kode aktivasi, contoh: MHD-ALHIKMAH-2026. ' +
+    '(3) Atau klik "Coba Gratis 5 Hari" untuk trial tanpa kode. ' +
+    '(4) Setelah aktivasi, aplikasi langsung bisa digunakan. ' +
+    'Trial habis → mode read-only, data tetap bisa dibuka tapi tidak bisa tambah/ubah/hapus.'
+  );
+
+  addSection('2', 'Data Siswa & Kelas',
+    'Sebelum presensi, pastikan data siswa dan kelas sudah diinput. ' +
+    'Data Kelas: tambah/edit nama kelas (contoh: X-A, XI-B, XII-IPA). ' +
+    'Data Siswa: tambah siswa dengan NIS, nama, kelas. Bisa import CSV (format: NIS,Nama,Kelas). ' +
+    'Setiap siswa otomatis punya kode QR unik untuk scan presensi.'
+  );
+
+  addSection('3', 'Presensi Siswa',
+    'Dua cara: (A) Presensi Manual — pilih kelas, klik status tiap siswa (Hadir/Sakit/Izin/Alpha/Terlambat/Dinas). ' +
+    'Status tersimpan otomatis, bisa diubah kapan saja. ' +
+    '(B) Scan QR — arahkan kamera ke kartu QR siswa, data langsung tercatat "Hadir". ' +
+    'Cocok untuk presensi cepat di pagi hari. Klik "Ganti Kamera" jika kamera tidak muncul.'
+  );
+
+  addSection('4', 'Cetak Kartu QR Siswa',
+    'Pilih kelas → muncul kartu QR semua siswa dalam grid. ' +
+    'Klik "Cetak Semua Kartu" untuk print seluruh kartu (format A4, 8 kartu per halaman). ' +
+    'Bisa juga cetak per siswa dengan klik kartu individual. ' +
+    'Kartu dipotong dan dibagikan ke siswa untuk scan harian.'
+  );
+
+  addSection('5', 'Data Guru & Presensi Guru',
+    'Data Guru: tambah/edit data guru (NIP, nama, mapel, jabatan). ' +
+    'Presensi Guru: pilih manual atau scan QR Guru. ' +
+    'Cetak QR Guru: setiap guru punya kartu QR untuk scan presensi.'
+  );
+
+  addSection('6', 'Rekap Presensi',
+    'Rekap Siswa: pilih kelas dan rentang tanggal → tabel rekap muncul. ' +
+    'Lihat rekap: Hadir/Sakit/Izin/Alpha/Terlambat per siswa. ' +
+    'Export PDF — download laporan rekap siap cetak. ' +
+    'Export Excel (CSV) — buka di Excel untuk olah data lanjutan. ' +
+    'Rekap Guru: format sama, khusus data guru.'
+  );
+
+  addSection('7', 'Dashboard',
+    'Ringkasan kehadiran siswa & guru hari ini. ' +
+    'Statistik: Total, Hadir, Terlambat, Izin/Sakit, Alpha, Belum Absen. ' +
+    'Grafik batang kehadiran siswa. Daftar siswa yang belum presensi.'
+  );
+
+  addSection('8', 'Pengaturan',
+    'Nama Madrasah: tampil di header aplikasi & laporan. ' +
+    'Ubah Password: ganti password login (default: admin123). ' +
+    'Backup Data: download seluruh data sebagai file JSON. ' +
+    'Restore Data: upload file backup untuk pindah device. ' +
+    'Reset Data: hapus semua data (hati-hati!). ' +
+    'Info Lisensi: lihat status lisensi aktif.'
+  );
+
+  addSection('9', 'Tips & FAQ',
+    'Q: Data hilang setelah ganti HP? ' +
+    'A: Backup dulu di HP lama (Pengaturan → Backup), lalu restore di HP baru (Pengaturan → Restore). ' +
+    'Q: Bisa pakai offline? A: Ya, aplikasi ini PWA, bisa di-install di HP/laptop dan dipakai tanpa internet. ' +
+    'Klik "Pasang" di banner bawah. ' +
+    'Q: Scan QR tidak muncul kamera? A: Pastikan izin kamera sudah diaktifkan di browser. Klik "Ganti Kamera" untuk switch kamera depan/belakang. ' +
+    'Q: Bagaimana cara import data siswa banyak? A: Siapkan file CSV dengan format NIS,Nama,Kelas lalu import di menu Data Siswa. ' +
+    'Q: Kode aktivasi tidak berlaku? A: Hubungi Subariyanto, S.Pd, M.Pd.I. (Ketua Pokjawas Kab. Jember) untuk kode baru.'
+  );
+
+  // Footer
+  if (y + 10 > pageH - 15) { doc.addPage(); y = margin; }
+  y = pageH - 20;
+  doc.setDrawColor(21, 128, 61);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageW - margin, y);
+  y += 6;
+  doc.setFontSize(7);
+  doc.setTextColor(156, 163, 175);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Madrasah Hadir Digital — ' + (settings.namaSekolah || lisensi.madrasah || '') + ' | ' + new Date().toLocaleDateString('id-ID'), pageW / 2, y, { align: 'center' });
+
+  doc.save('panduan-madrasah-hadir-digital.pdf');
+}
+
 function renderPanduan(){
   return `
 <div class="card" style="margin-bottom:16px">
 <h3 style="font-size:16px;color:#15803d;margin:0 0 4px">📖 Panduan Penggunaan</h3>
 <p style="font-size:13px;color:#6b7280;margin:0 0 16px">Madrasah Hadir Digital — Sistem Presensi</p>
+<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="downloadPanduanPDF()">📥 Download PDF</button></div>
 
 <div style="display:flex;flex-direction:column;gap:16px">
 
