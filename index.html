@@ -179,6 +179,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <a href="#" onclick="nav('presensiGuru')" id="nav-presensiGuru">✅ Presensi Guru</a>
 <a href="#" onclick="nav('rekapGuru')" id="nav-rekapGuru">📋 Rekap Guru</a>
 <a href="#" onclick="nav('kartuGuru')" id="nav-kartuGuru">🪪 QR Guru</a>
+<a href="#" onclick="nav('panduan')" id="nav-panduan">📖 Panduan</a>
 <a href="#" onclick="nav('pengaturan')" id="nav-pengaturan">⚙️ Pengaturan</a>
 <button onclick="logout()" style="margin-top:20px;color:#fecaca">🚪 Logout</button>
 <div style="margin-top:24px;padding:12px 14px 14px;border-top:1px solid rgba(255,255,255,0.18);font-size:11px;line-height:1.45;color:rgba(255,255,255,0.78);text-align:center">
@@ -593,7 +594,7 @@ function nav(page){
   currentPage=page;
   document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
   const el=document.getElementById('nav-'+page);if(el)el.classList.add('active');
-  const titles={home:'Beranda',dashboard:'Dashboard',presensi:'Presensi Manual',scan:'Scan QR',siswa:'Data Siswa',kelas:'Data Kelas',kartu:'Cetak Kartu QR',rekap:'Rekap Presensi',guru:'Data Guru',presensiGuru:'Presensi Guru',rekapGuru:'Rekap Presensi Guru',kartuGuru:'Cetak QR Guru',pengaturan:'Pengaturan'};
+  const titles={home:'Beranda',dashboard:'Dashboard',presensi:'Presensi Manual',scan:'Scan QR',siswa:'Data Siswa',kelas:'Data Kelas',kartu:'Cetak Kartu QR',rekap:'Rekap Presensi',guru:'Data Guru',presensiGuru:'Presensi Guru',rekapGuru:'Rekap Presensi Guru',kartuGuru:'Cetak QR Guru',panduan:'Panduan Penggunaan',pengaturan:'Pengaturan'};
   document.getElementById('pageTitle').textContent=titles[page]||page;
   render();closeSidebarMobile();
 }
@@ -647,6 +648,7 @@ function render(){
     case'presensiGuru':c.innerHTML=renderPresensiGuru();setTimeout(loadPresensiGuru,50);break;
     case'rekapGuru':c.innerHTML=renderRekapGuru();break;
     case'kartuGuru':c.innerHTML=renderKartuGuru();setTimeout(generateQRGuru,100);break;
+    case'panduan':c.innerHTML=renderPanduan();break;
     case'pengaturan':c.innerHTML=renderPengaturan();break;
   }
 }
