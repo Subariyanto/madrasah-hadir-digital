@@ -103,6 +103,11 @@
   MHD.del = async function(table, id){
     return rest('/'+table+'?id=eq.'+id, { method:'DELETE' });
   };
+  MHD.deleteMissing = async function(table, madrasahId, keepIds){
+    const rows = await rest('/'+table+'?madrasah_id=eq.'+madrasahId+'&select=id');
+    const keep = new Set((keepIds||[]).map(String));
+    for(const r of (rows||[]).filter(r=>!keep.has(String(r.id)))) await MHD.del(table, r.id);
+  };
 
   // ===== Sync helpers =====
   // Pull: ambil semua data madrasah dari server, simpan ke localStorage (cache)
@@ -152,8 +157,7 @@
           id: p.id || (crypto&&crypto.randomUUID?crypto.randomUUID():('p_'+Date.now()+'_'+Math.random().toString(36).slice(2,8))),
           madrasah_id:madrasahId, siswa_id:sid,
           tanggal:p.tanggal, status:p.status||'hadir',
-          waktu_masuk:p.waktuMasuk||p.waktu||null,
-          waktu_pulang:p.waktuPulang||null,
+          waktu:p.waktuMasuk||p.waktu||null,
           keterangan:p.keterangan||null,
           recorded_by:p.recordedBy||null
         }, 'id'));
@@ -173,12 +177,18 @@
         }, 'id'));
       }
     }
+    if(payload.settings){
+      const x=payload.settings;
+      tasks.push(MHD.upsert('settings', { madrasah_id:madrasahId, jam_masuk:x.jamMasuk||'07:00', batas_terlambat:x.batasTerlambat||'07:15', jam_pulang:x.jamPulang||'14:00', tahun_ajaran:x.tahunAjaran||null, semester:x.semester||null, extras:x, updated_at:new Date().toISOString() }, 'madrasah_id'));
+    }
     // Run in batches of 5 to avoid overload
     const results = [];
     for(let i=0;i<tasks.length;i+=5){
       const batch = tasks.slice(i,i+5);
       results.push(...await Promise.allSettled(batch));
     }
+    const maps=[['kelas','kelas'],['siswa','siswa'],['guru','guru'],['presensi','presensi'],['presensiGuru','presensi_guru']];
+    for(const pair of maps){ if(Object.prototype.hasOwnProperty.call(payload,pair[0])){ try{ await MHD.deleteMissing(pair[1],madrasahId,(payload[pair[0]]||[]).map(x=>x.id).filter(Boolean)); } catch(e){ results.push({status:'rejected',reason:e}); } } }
     return results;
   };
 

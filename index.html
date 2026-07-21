@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
@@ -164,7 +164,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <div class="sidebar" id="sidebar">
 <div style="padding:16px;border-bottom:1px solid rgba(255,255,255,.2)">
 <h2 style="color:#fff;font-size:16px;margin:0" id="appTitle">Madrasah Hadir Digital</h2>
-<p style="color:#bbf7d0;font-size:11px;margin:4px 0 0">Sistem Presensi</p>
+<p style="color:#bbf7d0;font-size:11px;margin:4px 0 0">Sistem Presensi · <span id="mhdSyncStatus" style="position:fixed;right:12px;bottom:12px;z-index:9999;background:#166534;color:#bbf7d0;padding:7px 11px;border-radius:16px;box-shadow:0 2px 8px #0004">☁ Menunggu</span></p>
 </div>
 <nav style="padding:8px 0">
 <a href="#" onclick="nav('home')" id="nav-home" class="active">🏠 Beranda</a>
@@ -268,12 +268,52 @@ const DB={
   }
 };
 
-// ===== AUTO CLOUD SYNC (debounced push on DB.set) =====
-var _mhdSyncTimer=null;
+// ===== AUTO CLOUD SYNC (debounced, multi-device) =====
+var _mhdSyncTimer=null, _mhdRealtimeTimer=null, _mhdRealtimeSocket=null, _mhdApplyingCloud=false, _mhdSyncBusy=false;
 var _mhdSyncDirty={};
+function _mhdSetSyncStatus(text,state){
+  const el=document.getElementById('mhdSyncStatus'); if(!el)return;
+  el.textContent=text; el.style.color=state==='error'?'#fecaca':state==='busy'?'#fef08a':'#bbf7d0';
+}
+function _mhdLocalPayload(){return {kelas:_DBraw.get('kelas')||[],siswa:_DBraw.get('siswa')||[],guru:_DBraw.get('teachers')||[],presensi:_DBraw.get('presensi')||[],presensiGuru:_DBraw.get('teacherAttendance')||[],settings:_DBraw.get('settings')||{}};}
+function _mhdCloudHasData(d){return ['kelas','siswa','guru','presensi','presensiGuru'].some(k=>d[k]&&d[k].length);}
+function _mhdLocalHasData(){const d=_mhdLocalPayload();return ['kelas','siswa','guru','presensi','presensiGuru'].some(k=>d[k].length);}
+function _mhdApplyCloud(d){
+  _mhdApplyingCloud=true;
+  try{
+    _DBraw.set('kelas',(d.kelas||[]).map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})));
+    _DBraw.set('siswa',(d.siswa||[]).map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||''})));
+    _DBraw.set('teachers',(d.guru||[]).map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})));
+    _DBraw.set('presensi',(d.presensi||[]).map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu||'',keterangan:p.keterangan||''})));
+    _DBraw.set('teacherAttendance',(d.presensiGuru||[]).map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
+    if(d.settings){const extras=d.settings.extras||{};_DBraw.set('settings',Object.assign({},_DBraw.get('settings')||{},extras,{jamMasuk:d.settings.jam_masuk||extras.jamMasuk,batasTerlambat:d.settings.batas_terlambat||extras.batasTerlambat,jamPulang:d.settings.jam_pulang||extras.jamPulang,tahunAjaran:d.settings.tahun_ajaran||extras.tahunAjaran,semester:d.settings.semester||extras.semester}));}
+  }finally{_mhdApplyingCloud=false;}
+}
+async function _mhdResolveCloud(){
+  let id=_DBraw.get('cloud_madrasah_id'); if(id)return id;
+  const lis=_DBraw.get('lisensi'); if(!lis||!lis.kode)return null;
+  const m=await window.MHDCloud.findMadrasahByKode(lis.kode); if(m&&m.id){_DBraw.set('cloud_madrasah_id',m.id);return m.id;} return null;
+}
+async function _mhdCloudStart(){
+  if(!window.MHDCloud||!window.MHDCloud.enabled||_mhdSyncBusy||!navigator.onLine)return;
+  _mhdSyncBusy=true; _mhdSetSyncStatus('☁ Menyinkronkan…','busy');
+  try{
+    const id=await _mhdResolveCloud(); if(!id)return;
+    const cloud=await window.MHDCloud.pullAll(id);
+    if(_mhdCloudHasData(cloud)) _mhdApplyCloud(cloud);
+    else await window.MHDCloud.pushAll(id,_mhdLocalPayload());
+    _mhdSetSyncStatus('☁ Tersinkron','ok');
+    if(!_mhdRealtimeSocket) _mhdRealtimeSocket=window.MHDCloud.subscribe(id,function(){clearTimeout(_mhdRealtimeTimer);_mhdRealtimeTimer=setTimeout(async function(){if(_mhdSyncBusy)return;try{_mhdApplyCloud(await window.MHDCloud.pullAll(id));_mhdSetSyncStatus('☁ Diperbarui','ok');if(loggedIn)render();}catch(e){_mhdSetSyncStatus('☁ Gagal sync','error');}},900);});
+    if(loggedIn){const st=_DBraw.get('settings')||{};document.getElementById('appTitle').textContent=st.namaSekolah||'Madrasah Hadir Digital';render();}
+  }catch(e){console.warn('[MHDCloud] initial sync gagal:',e);_mhdSetSyncStatus(navigator.onLine?'☁ Sync gagal':'☁ Offline','error');}
+  finally{_mhdSyncBusy=false;}
+}
+window.addEventListener('online',_mhdCloudStart);
+window.addEventListener('offline',()=>_mhdSetSyncStatus('☁ Offline','error'));
 function _mhdCloudQueue(key){
+  if(_mhdApplyingCloud)return;
   // Hanya push key data yang relevan ke cloud
-  if(['kelas','siswa','teachers','presensi','teacherAttendance'].indexOf(key)<0)return;
+  if(['kelas','siswa','teachers','presensi','teacherAttendance','settings'].indexOf(key)<0)return;
   _mhdSyncDirty[key]=true;
   if(_mhdSyncTimer)clearTimeout(_mhdSyncTimer);
   _mhdSyncTimer=setTimeout(_mhdCloudFlush, 1500);
@@ -303,11 +343,17 @@ async function _mhdCloudFlush(){
   if(dirty.teachers)payload.guru=_DBraw.get('teachers')||[];
   if(dirty.presensi)payload.presensi=_DBraw.get('presensi')||[];
   if(dirty.teacherAttendance)payload.presensiGuru=_DBraw.get('teacherAttendance')||[];
+  if(dirty.settings)payload.settings=_DBraw.get('settings')||{};
   try{
-    await window.MHDCloud.pushAll(id, payload);
+    _mhdSyncBusy=true;_mhdSetSyncStatus('☁ Menyimpan…','busy');
+    const results=await window.MHDCloud.pushAll(id, payload);
+    if(results.some(r=>r.status==='rejected'))throw new Error('Sebagian data gagal disimpan');
+    _mhdSetSyncStatus('☁ Tersinkron','ok');
   }catch(e){
+    Object.assign(_mhdSyncDirty,dirty);_mhdSetSyncStatus(navigator.onLine?'☁ Sync gagal':'☁ Offline','error');
     console.warn('[MHDCloud] auto-sync gagal:',e);
-  }
+  }finally{_mhdSyncBusy=false;}
+  if(Object.keys(_mhdSyncDirty).length&&navigator.onLine){clearTimeout(_mhdSyncTimer);_mhdSyncTimer=setTimeout(_mhdCloudFlush,5000);}
 }
 
 // ===== TOAST NOTIFICATIONS =====
@@ -2223,6 +2269,7 @@ function initApp(){
     if(window.innerWidth>768)document.getElementById('sidebar').classList.remove('show-mobile');
   });
   nav('home');
+  _mhdCloudStart();
 }
 
 // ===== BOOT =====
