@@ -2246,8 +2246,20 @@ function boot(){
     }, 100);
     return;
   }
-  // User madrasah: cek apakah sudah ada lisensi valid
+  // User madrasah baru logout: jangan auto-login lagi; tampilkan layar masuk kembali.
   var lisensi = _DBraw.get('lisensi');
+  if(localStorage.getItem('mhd_logged_out')==='1' && lisensi){
+    var ws=document.getElementById('welcomeScreen');
+    if(ws){
+      var wm=document.getElementById('welcomeMadrasah');
+      if(wm)wm.textContent=lisensi.nama||lisensi.madrasah||'';
+      ws.style.display='flex';
+    }
+    document.getElementById('aktivasiScreen').style.display='none';
+    document.getElementById('loginScreen').style.display='none';
+    return;
+  }
+  // User madrasah: cek apakah sudah ada lisensi valid
   if(lisensi && lisensi.tier==='full'){
     var now = new Date().toISOString().slice(0,10);
     if(lisensi.berlaku >= now){
