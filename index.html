@@ -301,8 +301,10 @@ async function _mhdCloudStart(){
     const id=await _mhdResolveCloud(); if(!id)return;
     const cloud=await window.MHDCloud.pullAll(id);
     if(_DBraw.get('mhd_cloud_pending')){await window.MHDCloud.pushAll(id,_mhdLocalPayload());_DBraw.del('mhd_cloud_pending');}
-    else if(_mhdCloudHasData(cloud)||cloud.settings) _mhdApplyCloud(cloud);
+    else if(_mhdCloudHasData(cloud)) _mhdApplyCloud(cloud);
+    // Settings saja bukan bukti cloud berisi database. Utamakan data lokal agar tidak tertimpa array kosong.
     else if(_mhdLocalHasData()) await window.MHDCloud.pushAll(id,_mhdLocalPayload());
+    else if(cloud.settings) _mhdApplyCloud(cloud);
     _mhdSetSyncStatus('☁ Tersinkron','ok');
     if(!_mhdRealtimeSocket) _mhdRealtimeSocket=window.MHDCloud.subscribe(id,function(){clearTimeout(_mhdRealtimeTimer);_mhdRealtimeTimer=setTimeout(async function(){if(_mhdSyncBusy)return;try{_mhdApplyCloud(await window.MHDCloud.pullAll(id));_mhdSetSyncStatus('☁ Diperbarui','ok');if(loggedIn)render();}catch(e){_mhdSetSyncStatus('☁ Gagal sync','error');}},900);});
     if(loggedIn){const st=_DBraw.get('settings')||{};document.getElementById('appTitle').textContent=st.namaSekolah||'Madrasah Hadir Digital';render();}
