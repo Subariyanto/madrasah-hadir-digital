@@ -85,7 +85,9 @@
   // ===== CRUD generic =====
   MHD.list = async function(table, madrasahId, extra){
     extra = extra || '';
-    return rest('/'+table+'?madrasah_id=eq.'+madrasahId+(extra?'&'+extra:'')+'&order=created_at.asc');
+    // settings tidak memiliki created_at; salah order membuat seluruh pullAll gagal.
+    const orderCol = table === 'settings' ? 'updated_at' : 'created_at';
+    return rest('/'+table+'?madrasah_id=eq.'+madrasahId+(extra?'&'+extra:'')+'&order='+orderCol+'.asc');
   };
   MHD.upsert = async function(table, row, conflictCol){
     return rest('/'+table+(conflictCol?'?on_conflict='+conflictCol:''), {
