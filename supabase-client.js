@@ -112,6 +112,15 @@
   };
 
   // ===== Sync helpers =====
+  // PostgreSQL memakai UUID, sedangkan data lokal lama memakai id seperti k1/s123.
+  function cloudUuid(id){
+    const s=String(id||'');
+    if(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s))return s;
+    let a=2166136261,b=0x9e3779b9,c=0x85ebca6b,d=0xc2b2ae35;
+    for(let i=0;i<s.length;i++){const x=s.charCodeAt(i);a=Math.imul(a^x,16777619);b=Math.imul(b+x,2246822519);c=Math.imul(c^x,3266489917);d=Math.imul(d+x,668265263)}
+    const h=n=>(n>>>0).toString(16).padStart(8,'0');const z=h(a)+h(b)+h(c)+h(d);
+    return z.slice(0,8)+'-'+z.slice(8,12)+'-4'+z.slice(13,16)+'-a'+z.slice(17,20)+'-'+z.slice(20,32);
+  }
   // Pull: ambil semua data madrasah dari server, simpan ke localStorage (cache)
   MHD.pullAll = async function(madrasahId){
     const [kelas, siswa, guru, presensi, presensiGuru, settings] = await Promise.all([
@@ -130,13 +139,13 @@
     const tasks = [];
     if(payload.kelas && payload.kelas.length){
       for(const k of payload.kelas){
-        tasks.push(MHD.upsert('kelas', { id:k.id, madrasah_id:madrasahId, nama:k.nama, wali_kelas:k.waliKelas||null }, 'id'));
+        tasks.push(MHD.upsert('kelas', { id:cloudUuid(k.id), madrasah_id:madrasahId, nama:k.nama, wali_kelas:k.waliKelas||null }, 'id'));
       }
     }
     if(payload.siswa && payload.siswa.length){
       for(const s of payload.siswa){
         tasks.push(MHD.upsert('siswa', {
-          id:s.id, madrasah_id:madrasahId, kelas_id:s.kelas||null,
+          id:cloudUuid(s.id), madrasah_id:madrasahId, kelas_id:s.kelas?cloudUuid(s.kelas):null,
           nama:s.nama, nisn:s.nisn||null, jk:s.jk||null,
           tgl_lahir:s.tglLahir||null, alamat:s.alamat||null,
           nama_ortu:s.namaOrtu||null, no_wa_ortu:s.noWaOrtu||null
@@ -146,7 +155,7 @@
     if(payload.guru && payload.guru.length){
       for(const g of payload.guru){
         tasks.push(MHD.upsert('guru', {
-          id:g.id, madrasah_id:madrasahId, nama:g.nama,
+          id:cloudUuid(g.id), madrasah_id:madrasahId, nama:g.nama,
           nip:g.nip||null, jabatan:g.jabatan||null, no_wa:g.noWa||null
         }, 'id'));
       }
@@ -156,8 +165,8 @@
         const sid = p.siswa || p.siswaId;
         if(!sid || !p.tanggal) continue;
         tasks.push(MHD.upsert('presensi', {
-          id: p.id || (crypto&&crypto.randomUUID?crypto.randomUUID():('p_'+Date.now()+'_'+Math.random().toString(36).slice(2,8))),
-          madrasah_id:madrasahId, siswa_id:sid,
+          id: cloudUuid(p.id||('p_'+p.tanggal+'_'+sid)),
+          madrasah_id:madrasahId, siswa_id:cloudUuid(sid),
           tanggal:p.tanggal, status:p.status||'hadir',
           waktu:p.waktuMasuk||p.waktu||null,
           keterangan:p.keterangan||null,
@@ -170,8 +179,8 @@
         const gid = p.guru || p.guruId;
         if(!gid || !p.tanggal) continue;
         tasks.push(MHD.upsert('presensi_guru', {
-          id: p.id || (crypto&&crypto.randomUUID?crypto.randomUUID():('pg_'+Date.now()+'_'+Math.random().toString(36).slice(2,8))),
-          madrasah_id:madrasahId, guru_id:gid,
+          id: cloudUuid(p.id||('pg_'+p.tanggal+'_'+gid)),
+          madrasah_id:madrasahId, guru_id:cloudUuid(gid),
           tanggal:p.tanggal, status:p.status||'hadir',
           waktu_masuk:p.waktuMasuk||null,
           waktu_pulang:p.waktuPulang||null,
@@ -190,7 +199,7 @@
       results.push(...await Promise.allSettled(batch));
     }
     const maps=[['kelas','kelas'],['siswa','siswa'],['guru','guru'],['presensi','presensi'],['presensiGuru','presensi_guru']];
-    for(const pair of maps){ if(Object.prototype.hasOwnProperty.call(payload,pair[0])){ try{ await MHD.deleteMissing(pair[1],madrasahId,(payload[pair[0]]||[]).map(x=>x.id).filter(Boolean)); } catch(e){ results.push({status:'rejected',reason:e}); } } }
+    for(const pair of maps){ if(Object.prototype.hasOwnProperty.call(payload,pair[0])){ try{ await MHD.deleteMissing(pair[1],madrasahId,(payload[pair[0]]||[]).map(x=>cloudUuid(x.id)).filter(Boolean)); } catch(e){ results.push({status:'rejected',reason:e}); } } }
     return results;
   };
 

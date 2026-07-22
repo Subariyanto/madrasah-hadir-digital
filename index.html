@@ -1892,7 +1892,9 @@ async function cloudPushAll(){
       kelas: DB.get('kelas')||[],
       siswa: DB.get('siswa')||[],
       guru: DB.get('teachers')||[],
-      presensi: DB.get('presensi')||[]
+      presensi: DB.get('presensi')||[],
+      presensiGuru: DB.get('teacherAttendance')||[],
+      settings: DB.get('settings')||{}
     };
     const results = await window.MHDCloud.pushAll(m.id, payload);
     const ok = results.filter(r=>r.status==='fulfilled').length;
