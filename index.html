@@ -1317,23 +1317,23 @@ function generateQRCards(){
       '<div id="qr-'+s.id+'" style="display:inline-block;margin:8px 0"></div>'+
       '<p style="font-size:11px;color:#6b7280;margin:4px 0 0">'+s.nama+'</p></div>';
     }
-    return '<div style="border:1px solid #86a995;border-radius:10px;padding:12px;background:#fff;min-width:320px;max-width:420px;box-shadow:0 1px 3px #0001">'+
-    '<div style="text-align:center;border-bottom:2px solid #15803d;padding-bottom:6px;margin-bottom:10px">'+
-      '<p style="font-size:13px;color:#15803d;font-weight:700;margin:0">KARTU PELAJAR</p>'+
-      '<p style="font-size:11px;color:#374151;font-weight:600;margin:2px 0 0">'+(settings.namaSekolah||'Madrasah')+'</p></div>'+
-    '<div style="display:flex;gap:12px;align-items:center">'+
-      '<div style="flex:1;min-width:0;font-size:11px;line-height:1.55;color:#1f2937">'+
-        '<div><b>Nama</b><span style="float:right;width:68%">: '+(s.nama||'-')+'</span></div>'+
-        '<div><b>NIS</b><span style="float:right;width:68%">: '+(s.nisn||'-')+'</span></div>'+
-        '<div><b>Kelas</b><span style="float:right;width:68%">: '+(k?k.nama:'-')+'</span></div>'+
-        '<div><b>Nama Orang Tua</b><span style="float:right;width:68%">: '+(s.namaOrtu||'-')+'</span></div>'+
-        '<div><b>No. HP Orang Tua</b><span style="float:right;width:68%">: '+(s.noWaOrtu||'-')+'</span></div>'+
-      '</div><div id="qr-'+s.id+'" style="flex:0 0 auto"></div>'+
-    '</div></div>';
+    return '<div style="border:1px solid #15803d;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#ffffff 55%,#ecfdf5);min-width:340px;max-width:440px;box-shadow:0 3px 10px #16653422">'+
+    '<div style="text-align:center;background:linear-gradient(100deg,#166534,#16a34a);padding:8px 12px;border-bottom:3px solid #fbbf24">'+
+      '<p style="font-size:14px;color:#fff;font-weight:800;letter-spacing:.6px;margin:0">KARTU PELAJAR</p>'+
+      '<p style="font-size:11px;color:#fef3c7;font-weight:600;margin:2px 0 0">'+(settings.namaSekolah||'Madrasah')+'</p></div>'+
+    '<div style="display:flex;gap:10px;align-items:center;padding:12px">'+
+      '<div style="flex:1;min-width:0;display:grid;grid-template-columns:92px 8px minmax(0,1fr);gap:3px 2px;align-items:start;font-size:10.5px;line-height:1.35;color:#1f2937">'+
+        '<b>Nama</b><span>:</span><span style="font-weight:600">'+(s.nama||'-')+'</span>'+
+        '<b>NIS</b><span>:</span><span>'+(s.nisn||'-')+'</span>'+
+        '<b>Kelas</b><span>:</span><span>'+(k?k.nama:'-')+'</span>'+
+        '<b>Nama Orang Tua</b><span>:</span><span>'+(s.namaOrtu||'-')+'</span>'+
+        '<b>No. HP Orang Tua</b><span>:</span><span>'+(s.noWaOrtu||'-')+'</span>'+
+      '</div><div id="qr-'+s.id+'" style="flex:0 0 82px;padding:4px;background:#fff;border:1px solid #bbf7d0;border-radius:7px;line-height:0"></div>'+
+    '</div><div style="height:5px;background:linear-gradient(90deg,#fbbf24,#16a34a,#166534)"></div></div>';
   }).join('');
   siswa.forEach(s=>{
     const el=document.getElementById('qr-'+s.id);
-    if(el){el.innerHTML='';new QRCode(el,{text:s.id,width:qrSize,height:qrSize})}
+    if(el){const finalQrSize=mode==='full'?74:qrSize;el.innerHTML='';new QRCode(el,{text:s.id,width:finalQrSize,height:finalQrSize})}
   });
 }
 
