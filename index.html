@@ -286,12 +286,13 @@ function _mhdLocalHasData(){const d=_mhdLocalPayload();return ['kelas','siswa','
 function _mhdApplyCloud(d){
   _mhdApplyingCloud=true;
   try{
-    _DBraw.set('kelas',(d.kelas||[]).map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})));
+    const mergeById=(local,remote)=>{const m=new Map((local||[]).map(x=>[String(x.id),x]));(remote||[]).forEach(x=>m.set(String(x.id),Object.assign({},m.get(String(x.id))||{},x)));return Array.from(m.values())};
+    if(d.kelas&&d.kelas.length)_DBraw.set('kelas',mergeById(_DBraw.get('kelas'),d.kelas.map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''}))));
     const cloudExtras=d.settings&&d.settings.extras||{}, photos=cloudExtras.studentPhotos||{};
-    _DBraw.set('siswa',(d.siswa||[]).map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||s.nis||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||'',photo:photos[s.id]||''})));
-    _DBraw.set('teachers',(d.guru||[]).map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})));
-    _DBraw.set('presensi',(d.presensi||[]).map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu||'',keterangan:p.keterangan||''})));
-    _DBraw.set('teacherAttendance',(d.presensiGuru||[]).map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
+    if(d.siswa&&d.siswa.length)_DBraw.set('siswa',mergeById(_DBraw.get('siswa'),d.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||s.nis||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||'',photo:photos[s.id]||undefined}))));
+    if(d.guru&&d.guru.length)_DBraw.set('teachers',mergeById(_DBraw.get('teachers'),d.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''}))));
+    if(d.presensi&&d.presensi.length)_DBraw.set('presensi',mergeById(_DBraw.get('presensi'),d.presensi.map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu||'',keterangan:p.keterangan||''}))));
+    if(d.presensiGuru&&d.presensiGuru.length)_DBraw.set('teacherAttendance',mergeById(_DBraw.get('teacherAttendance'),d.presensiGuru.map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''}))));
     if(d.settings){const extras=d.settings.extras||{};_DBraw.set('settings',Object.assign({},_DBraw.get('settings')||{},extras,{jamMasuk:d.settings.jam_masuk||extras.jamMasuk,batasTerlambat:d.settings.batas_terlambat||extras.batasTerlambat,jamPulang:d.settings.jam_pulang||extras.jamPulang,tahunAjaran:d.settings.tahun_ajaran||extras.tahunAjaran,semester:d.settings.semester||extras.semester}));}
   }finally{_mhdApplyingCloud=false;}
 }
