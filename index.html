@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
@@ -123,14 +123,14 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <!-- AKTIVASI SCREEN -->
 <div id="aktivasiScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:300;align-items:center;justify-content:center">
 <div class="card" style="max-width:400px;width:90%;text-align:center">
-<h2 style="color:#15803d;margin-bottom:4px">🔑 Aktivasi Aplikasi</h2>
+<h2 style="color:#15803d;margin-bottom:4px">ðŸ”‘ Aktivasi Aplikasi</h2>
 <p style="color:#6b7280;font-size:13px;margin-bottom:8px">Madrasah Hadir Digital</p>
 <p style="color:#374151;font-size:12px;margin-bottom:16px">Masukkan kode aktivasi yang diberikan oleh Pengawas Madrasah, atau coba gratis 5 hari.</p>
 <input type="text" id="kodeAktivasi" placeholder="Contoh: MHD-ALHIKMAH-2026" style="margin-bottom:12px;text-transform:uppercase">
 <input type="text" id="aktivasiNamaMadrasah" placeholder="Nama Madrasah Lengkap" style="margin-bottom:12px">
 <input type="text" id="aktivasiAlamat" placeholder="Alamat Madrasah Lengkap" style="margin-bottom:12px">
 <button class="btn btn-primary" style="width:100%" onclick="doAktivasi()">Aktivasi</button>
-<button class="btn" style="width:100%;margin-top:8px;background:#fbbf24;color:#000;border:none;padding:10px;border-radius:8px;font-weight:600;cursor:pointer" onclick="doTrialAktivasi()">🎁 Coba Gratis 5 Hari</button>
+<button class="btn" style="width:100%;margin-top:8px;background:#fbbf24;color:#000;border:none;padding:10px;border-radius:8px;font-weight:600;cursor:pointer" onclick="doTrialAktivasi()">ðŸŽ Coba Gratis 5 Hari</button>
 <p id="aktivasiError" style="color:#dc2626;font-size:12px;margin-top:8px;display:none"></p>
 <p id="aktivasiInfo" style="color:#6b7280;font-size:11px;margin-top:16px">Hubungi Subariyanto, di No. Hp. 082330647698 untuk mendapatkan Kode Aktivasi FULL</p>
 </div>
@@ -139,11 +139,11 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <!-- LOGIN SCREEN -->
 <div id="welcomeScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:250;align-items:center;justify-content:center">
 <div class="card" style="max-width:380px;width:90%;text-align:center">
-<h2 style="color:#15803d;margin-bottom:4px">🕌 <span id="welcomeTitle">Madrasah Hadir Digital</span></h2>
+<h2 style="color:#15803d;margin-bottom:4px">ðŸ•Œ <span id="welcomeTitle">Madrasah Hadir Digital</span></h2>
 <p style="color:#6b7280;font-size:13px;margin-bottom:8px">Anda telah logout</p>
 <p id="welcomeMadrasah" style="color:#374151;font-size:14px;margin-bottom:16px;font-weight:600"></p>
-<button class="btn btn-primary" style="width:100%" onclick="doMasukKembali()">🔓 Masuk Kembali</button>
-<button class="btn btn-danger" style="width:100%;margin-top:8px" onclick="hapusAktivasi()">🗑️ Ganti Madrasah / Hapus Aktivasi</button>
+<button class="btn btn-primary" style="width:100%" onclick="doMasukKembali()">ðŸ”“ Masuk Kembali</button>
+<button class="btn btn-danger" style="width:100%;margin-top:8px" onclick="hapusAktivasi()">ðŸ—‘ï¸ Ganti Madrasah / Hapus Aktivasi</button>
 <p style="color:#6b7280;font-size:11px;margin-top:16px">Aplikasi ini dibuat oleh:<br><b>Subariyanto, S.Pd, M.Pd.I.</b><br>Ketua Pokjawas Kab. Jember</p>
 </div>
 </div>
@@ -151,7 +151,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <!-- LOGIN SCREEN -->
 <div id="loginScreen" style="display:none;position:fixed;inset:0;background:#f0fdf4;z-index:200;align-items:center;justify-content:center">
 <div class="card" style="max-width:360px;width:90%;text-align:center">
-<h2 style="color:#15803d;margin-bottom:4px">🕌 <span id="loginTitle">Madrasah Hadir Digital</span></h2>
+<h2 style="color:#15803d;margin-bottom:4px">ðŸ•Œ <span id="loginTitle">Madrasah Hadir Digital</span></h2>
 <p style="color:#6b7280;font-size:13px;margin-bottom:20px">Sistem Presensi Digital</p>
 <input type="text" id="loginUser" placeholder="Username" style="margin-bottom:10px"><br>
 <input type="password" id="loginPass" placeholder="Password" style="margin-bottom:16px"><br>
@@ -164,25 +164,25 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <div class="sidebar" id="sidebar">
 <div style="padding:16px;border-bottom:1px solid rgba(255,255,255,.2)">
 <h2 style="color:#fff;font-size:16px;margin:0" id="appTitle">Madrasah Hadir Digital</h2>
-<p style="color:#bbf7d0;font-size:11px;margin:4px 0 0">Sistem Presensi · <span id="mhdSyncStatus" style="position:fixed;right:12px;bottom:12px;z-index:9999;background:#166534;color:#bbf7d0;padding:7px 11px;border-radius:16px;box-shadow:0 2px 8px #0004">☁ Menunggu</span></p>
+<p style="color:#bbf7d0;font-size:11px;margin:4px 0 0">Sistem Presensi Â· <span id="mhdSyncStatus" style="position:fixed;right:12px;bottom:12px;z-index:9999;background:#166534;color:#bbf7d0;padding:7px 11px;border-radius:16px;box-shadow:0 2px 8px #0004">â˜ Menunggu</span></p>
 </div>
 <nav style="padding:8px 0">
-<a href="#" onclick="nav('home')" id="nav-home" class="active">🏠 Beranda</a>
-<a href="#" onclick="nav('dashboard')" id="nav-dashboard">📊 Dashboard</a>
-<a href="#" onclick="nav('presensi')" id="nav-presensi">✅ Presensi Manual</a>
-<a href="#" onclick="nav('scan')" id="nav-scan">📷 Scan QR</a>
-<a href="#" onclick="nav('siswa')" id="nav-siswa">👨‍🎓 Data Siswa</a>
-<a href="#" onclick="nav('kelas')" id="nav-kelas">🏫 Data Kelas</a>
-<a href="#" onclick="nav('madrasah')" id="nav-madrasah">🏫 Data Madrasah</a>
-<a href="#" onclick="nav('kartu')" id="nav-kartu">🪪 Cetak Kartu QR</a>
-<a href="#" onclick="nav('rekap')" id="nav-rekap">📋 Rekap Presensi</a>
-<a href="#" onclick="nav('guru')" id="nav-guru">👨‍🏫 Data Guru</a>
-<a href="#" onclick="nav('presensiGuru')" id="nav-presensiGuru">✅ Presensi Guru</a>
-<a href="#" onclick="nav('rekapGuru')" id="nav-rekapGuru">📋 Rekap Guru</a>
-<a href="#" onclick="nav('kartuGuru')" id="nav-kartuGuru">🪪 QR Guru</a>
-<a href="#" onclick="nav('panduan')" id="nav-panduan">📖 Panduan</a>
-<a href="#" onclick="nav('pengaturan')" id="nav-pengaturan">⚙️ Pengaturan</a>
-<button onclick="logout()" style="margin-top:20px;color:#fecaca">🚪 Logout</button>
+<a href="#" onclick="nav('home')" id="nav-home" class="active">ðŸ  Beranda</a>
+<a href="#" onclick="nav('dashboard')" id="nav-dashboard">ðŸ“Š Dashboard</a>
+<a href="#" onclick="nav('presensi')" id="nav-presensi">âœ… Presensi Manual</a>
+<a href="#" onclick="nav('scan')" id="nav-scan">ðŸ“· Scan QR</a>
+<a href="#" onclick="nav('siswa')" id="nav-siswa">ðŸ‘¨â€ðŸŽ“ Data Siswa</a>
+<a href="#" onclick="nav('kelas')" id="nav-kelas">ðŸ« Data Kelas</a>
+<a href="#" onclick="nav('madrasah')" id="nav-madrasah">ðŸ« Data Madrasah</a>
+<a href="#" onclick="nav('kartu')" id="nav-kartu">ðŸªª Cetak Kartu QR</a>
+<a href="#" onclick="nav('rekap')" id="nav-rekap">ðŸ“‹ Rekap Presensi</a>
+<a href="#" onclick="nav('guru')" id="nav-guru">ðŸ‘¨â€ðŸ« Data Guru</a>
+<a href="#" onclick="nav('presensiGuru')" id="nav-presensiGuru">âœ… Presensi Guru</a>
+<a href="#" onclick="nav('rekapGuru')" id="nav-rekapGuru">ðŸ“‹ Rekap Guru</a>
+<a href="#" onclick="nav('kartuGuru')" id="nav-kartuGuru">ðŸªª QR Guru</a>
+<a href="#" onclick="nav('panduan')" id="nav-panduan">ðŸ“– Panduan</a>
+<a href="#" onclick="nav('pengaturan')" id="nav-pengaturan">âš™ï¸ Pengaturan</a>
+<button onclick="logout()" style="margin-top:20px;color:#fecaca">ðŸšª Logout</button>
 <div style="margin-top:24px;padding:12px 14px 14px;border-top:1px solid rgba(255,255,255,0.18);font-size:11px;line-height:1.45;color:rgba(255,255,255,0.78);text-align:center">
 <div style="opacity:0.7;margin-bottom:4px">Aplikasi ini dibuat oleh:</div>
 <div style="font-weight:600;color:#fff">Subariyanto, S.Pd, M.Pd.I.</div>
@@ -195,7 +195,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <div class="main" id="mainContent">
 <div id="trialBanner" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:8px;font-size:13px"></div>
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-<button onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:24px;cursor:pointer" id="hamburger">☰</button>
+<button onclick="toggleSidebar()" style="display:none;background:none;border:none;font-size:24px;cursor:pointer" id="hamburger">â˜°</button>
 <h1 style="font-size:20px;color:#15803d;margin:0" id="pageTitle">Dashboard</h1>
 </div>
 <div id="pageContent"></div>
@@ -232,7 +232,7 @@ const _DBraw={
 };
 function _mhdIsTrialActive(){try{const l=(_DBraw&&_DBraw.get)?_DBraw.get('lisensi'):null;return !!(l&&l.tier==='trial');}catch(e){return false;}}
 function _mhdApplyTrialPrintMark(){try{document.body.classList.toggle('is-trial-print',_mhdIsTrialActive());}catch(e){}}
-function _mhdStampPdfTrial(doc){if(!_mhdIsTrialActive()||!doc)return;try{var total=doc.internal.getNumberOfPages();var w=doc.internal.pageSize.getWidth(),h=doc.internal.pageSize.getHeight();for(var i=1;i<=total;i++){doc.setPage(i);try{if(doc.GState&&doc.setGState)doc.setGState(new doc.GState({opacity:0.18}));}catch(e){}doc.setTextColor(220,38,38);doc.setFont('helvetica','bold');doc.setFontSize(72);doc.text('TRIAL',w/2,h/2,{align:'center',angle:30});try{if(doc.GState&&doc.setGState)doc.setGState(new doc.GState({opacity:0.7}));}catch(e){}doc.setFontSize(8);doc.text('DOKUMEN VERSI TRIAL — TIDAK SAH UNTUK PENGGUNAAN RESMI',w/2,6,{align:'center'});try{if(doc.GState&&doc.setGState)doc.setGState(new doc.GState({opacity:1}));}catch(e){}}}catch(e){console.warn('stampPdfTrial:',e);}}
+function _mhdStampPdfTrial(doc){if(!_mhdIsTrialActive()||!doc)return;try{var total=doc.internal.getNumberOfPages();var w=doc.internal.pageSize.getWidth(),h=doc.internal.pageSize.getHeight();for(var i=1;i<=total;i++){doc.setPage(i);try{if(doc.GState&&doc.setGState)doc.setGState(new doc.GState({opacity:0.18}));}catch(e){}doc.setTextColor(220,38,38);doc.setFont('helvetica','bold');doc.setFontSize(72);doc.text('TRIAL',w/2,h/2,{align:'center',angle:30});try{if(doc.GState&&doc.setGState)doc.setGState(new doc.GState({opacity:0.7}));}catch(e){}doc.setFontSize(8);doc.text('DOKUMEN VERSI TRIAL â€” TIDAK SAH UNTUK PENGGUNAAN RESMI',w/2,6,{align:'center'});try{if(doc.GState&&doc.setGState)doc.setGState(new doc.GState({opacity:1}));}catch(e){}}}catch(e){console.warn('stampPdfTrial:',e);}}
 window.addEventListener('beforeprint',_mhdApplyTrialPrintMark);
 document.addEventListener('DOMContentLoaded',_mhdApplyTrialPrintMark);
 // Trial lock check (lisensi tier='trial' dan trialExpiresAt sudah lewat)
@@ -303,7 +303,7 @@ async function _mhdResolveCloud(){
 }
 async function _mhdCloudStart(){
   if(!window.MHDCloud||!window.MHDCloud.enabled||_mhdSyncBusy||!navigator.onLine)return;
-  _mhdSyncBusy=true; _mhdSetSyncStatus('☁ Menyinkronkan…','busy');
+  _mhdSyncBusy=true; _mhdSetSyncStatus('â˜ Menyinkronkanâ€¦','busy');
   try{
     const id=await _mhdResolveCloud(); if(!id)return;
     const cloud=await window.MHDCloud.pullAll(id);
@@ -312,14 +312,14 @@ async function _mhdCloudStart(){
     // Settings saja bukan bukti cloud berisi database. Utamakan data lokal agar tidak tertimpa array kosong.
     else if(_mhdLocalHasData()) await window.MHDCloud.pushAll(id,_mhdLocalPayload());
     else if(cloud.settings) _mhdApplyCloud(cloud);
-    _mhdSetSyncStatus('☁ Tersinkron','ok');
-    if(!_mhdRealtimeSocket) _mhdRealtimeSocket=window.MHDCloud.subscribe(id,function(){clearTimeout(_mhdRealtimeTimer);_mhdRealtimeTimer=setTimeout(async function(){if(_mhdSyncBusy||_DBraw.get('mhd_cloud_pending')||Object.keys(_mhdSyncDirty).length)return;try{_mhdApplyCloud(await window.MHDCloud.pullAll(id));_mhdSetSyncStatus('☁ Diperbarui','ok');if(loggedIn)render();}catch(e){_mhdSetSyncStatus('☁ Gagal sync','error');}},900);});
+    _mhdSetSyncStatus('â˜ Tersinkron','ok');
+    if(!_mhdRealtimeSocket) _mhdRealtimeSocket=window.MHDCloud.subscribe(id,function(){clearTimeout(_mhdRealtimeTimer);_mhdRealtimeTimer=setTimeout(async function(){if(_mhdSyncBusy||_DBraw.get('mhd_cloud_pending')||Object.keys(_mhdSyncDirty).length)return;try{_mhdApplyCloud(await window.MHDCloud.pullAll(id));_mhdSetSyncStatus('â˜ Diperbarui','ok');if(loggedIn)render();}catch(e){_mhdSetSyncStatus('â˜ Gagal sync','error');}},900);});
     if(loggedIn){const st=_DBraw.get('settings')||{};document.getElementById('appTitle').textContent=st.namaSekolah||'Madrasah Hadir Digital';render();}
-  }catch(e){console.warn('[MHDCloud] initial sync gagal:',e);_mhdSetSyncStatus(navigator.onLine?'☁ Sync gagal':'☁ Offline','error');}
+  }catch(e){console.warn('[MHDCloud] initial sync gagal:',e);_mhdSetSyncStatus(navigator.onLine?'â˜ Sync gagal':'â˜ Offline','error');}
   finally{_mhdSyncBusy=false;}
 }
 window.addEventListener('online',_mhdCloudStart);
-window.addEventListener('offline',()=>_mhdSetSyncStatus('☁ Offline','error'));
+window.addEventListener('offline',()=>_mhdSetSyncStatus('â˜ Offline','error'));
 function _mhdCloudQueue(key){
   if(_mhdApplyingCloud)return;
   // Hanya push key data yang relevan ke cloud
@@ -357,13 +357,13 @@ async function _mhdCloudFlush(){
   if(dirty.teacherAttendance)payload.presensiGuru=_DBraw.get('teacherAttendance')||[];
   if(dirty.settings)payload.settings=_DBraw.get('settings')||{};
   try{
-    _mhdSyncBusy=true;_mhdSetSyncStatus('☁ Menyimpan…','busy');
+    _mhdSyncBusy=true;_mhdSetSyncStatus('â˜ Menyimpanâ€¦','busy');
     const results=await window.MHDCloud.pushAll(id, payload);
     if(results.some(r=>r.status==='rejected'))throw new Error('Sebagian data gagal disimpan');
     _DBraw.del('mhd_cloud_pending');
-    _mhdSetSyncStatus('☁ Tersinkron','ok');
+    _mhdSetSyncStatus('â˜ Tersinkron','ok');
   }catch(e){
-    Object.assign(_mhdSyncDirty,dirty);_mhdSetSyncStatus(navigator.onLine?'☁ Sync gagal':'☁ Offline','error');
+    Object.assign(_mhdSyncDirty,dirty);_mhdSetSyncStatus(navigator.onLine?'â˜ Sync gagal':'â˜ Offline','error');
     console.warn('[MHDCloud] auto-sync gagal:',e);
   }finally{_mhdSyncBusy=false;}
   if(Object.keys(_mhdSyncDirty).length&&navigator.onLine){clearTimeout(_mhdSyncTimer);_mhdSyncTimer=setTimeout(_mhdCloudFlush,5000);}
@@ -499,7 +499,7 @@ function doTrialAktivasi(){
   _DBraw.set('settings',settings);
   document.getElementById('aktivasiScreen').style.display='none';
   errEl.style.display='none';
-  // Auto-login — langsung masuk dashboard
+  // Auto-login â€” langsung masuk dashboard
   localStorage.setItem('loggedIn','true');
   loggedIn=true;
   initData();
@@ -673,12 +673,12 @@ function renderTrialBanner(){
     bar.style.background='#fef2f2';
     bar.style.border='2px solid #fca5a5';
     bar.style.color='#7f1d1d';
-    bar.innerHTML='⚠️ <b>Trial sudah habis.</b> Akun masuk mode <b>read-only</b> — data lama tetap bisa dibuka, tapi tidak bisa tambah/ubah/hapus. <a href="#" onclick="event.preventDefault();showAktivasiUpgrade();" style="color:#7f1d1d;text-decoration:underline;font-weight:600">Aktivasi Kode FULL</a>';
+    bar.innerHTML='âš ï¸ <b>Trial sudah habis.</b> Akun masuk mode <b>read-only</b> â€” data lama tetap bisa dibuka, tapi tidak bisa tambah/ubah/hapus. <a href="#" onclick="event.preventDefault();showAktivasiUpgrade();" style="color:#7f1d1d;text-decoration:underline;font-weight:600">Aktivasi Kode FULL</a>';
   }else{
     bar.style.background='#fffbeb';
     bar.style.border='2px solid #fcd34d';
     bar.style.color='#78350f';
-    bar.innerHTML='🎁 Mode <b>TRIAL</b> · sisa <b>'+daysLeft+' hari</b>. Setelah habis, akun masuk mode read-only sampai aktivasi kode FULL. <a href="#" onclick="event.preventDefault();showAktivasiUpgrade();" style="color:#78350f;text-decoration:underline;font-weight:600">Aktivasi Kode FULL</a>';
+    bar.innerHTML='ðŸŽ Mode <b>TRIAL</b> Â· sisa <b>'+daysLeft+' hari</b>. Setelah habis, akun masuk mode read-only sampai aktivasi kode FULL. <a href="#" onclick="event.preventDefault();showAktivasiUpgrade();" style="color:#78350f;text-decoration:underline;font-weight:600">Aktivasi Kode FULL</a>';
   }
   bar.style.display='block';
 }
@@ -822,7 +822,7 @@ function renderPresensi(){
   '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">'+
     '<select id="selKelas" onchange="loadPresensiKelas()" style="max-width:200px">'+kelas.map(k=>'<option value="'+k.id+'">'+k.nama+'</option>').join('')+'</select>'+
     '<input type="date" id="selTanggal" value="'+today+'" onchange="loadPresensiKelas()" style="max-width:180px">'+
-    '<button class="btn btn-primary" onclick="simpanPresensi()">💾 Simpan</button>'+
+    '<button class="btn btn-primary" onclick="simpanPresensi()">ðŸ’¾ Simpan</button>'+
   '</div>'+
   '<div id="presensiList"></div></div>';
 }
@@ -957,7 +957,7 @@ function onScanSuccess(decoded){
   const idx=presensi.findIndex(p=>(p.siswaId===siswa.id||p.siswa===siswa.id)&&p.tanggal===today);
   if(mode==='pulang'){
     if(idx<0){
-      // Belum absen masuk → tetap simpan dengan masuk kosong, pulang terisi
+      // Belum absen masuk â†’ tetap simpan dengan masuk kosong, pulang terisi
       presensi.push({siswaId:siswa.id,tanggal:today,status:'hadir',waktuMasuk:'',waktuPulang:waktuStr});
       res.innerHTML='<p style="color:#15803d">\u2705 Pulang: '+siswa.nama+' \u00B7 '+waktuStr+' (belum absen masuk)</p>';
     } else {
@@ -1019,10 +1019,10 @@ function renderSiswa(){
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-size:13px;color:#6b7280">Total: '+siswa.length+' siswa</span>'+
     '<input id="searchSiswa" placeholder="Cari nama/NISN..." value="'+search+'" oninput="render()" style="max-width:180px;padding:6px 10px"></div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
-      '<button class="btn btn-secondary" onclick="downloadTemplateSiswa()" title="Unduh template CSV">⬇️ Template</button>'+
-      '<button class="btn btn-secondary" onclick="document.getElementById(\'fileImportSiswa\').click()" title="Import CSV">📥 Import</button>'+
+      '<button class="btn btn-secondary" onclick="downloadTemplateSiswa()" title="Unduh template CSV">â¬‡ï¸ Template</button>'+
+      '<button class="btn btn-secondary" onclick="document.getElementById(\'fileImportSiswa\').click()" title="Import CSV">ðŸ“¥ Import</button>'+
       '<input type="file" id="fileImportSiswa" accept=".csv" style="display:none" onchange="importSiswaCSV(event)">'+
-      '<button class="btn btn-secondary" onclick="exportSiswaCSV()" title="Export CSV">📤 Export</button>'+
+      '<button class="btn btn-secondary" onclick="exportSiswaCSV()" title="Export CSV">ðŸ“¤ Export</button>'+
       '<button class="btn btn-primary" onclick="showAddSiswa()">+ Tambah Siswa</button>'+
     '</div>'+
   '</div>'+
@@ -1031,8 +1031,8 @@ function renderSiswa(){
   filtered.map((s,i)=>{
     const k=kelas.find(x=>x.id===s.kelas);
     return '<tr><td>'+(i+1)+'</td><td>'+s.nama+'</td><td>'+s.nisn+'</td><td>'+(k?k.nama:'-')+'</td><td>'+
-    '<button class="btn btn-secondary" onclick="editSiswa(\''+s.id+'\')" style="padding:4px 8px;font-size:12px">✏️</button> '+
-    '<button class="btn btn-danger" onclick="hapusSiswa(\''+s.id+'\')" style="padding:4px 8px;font-size:12px">🗑️</button></td></tr>';
+    '<button class="btn btn-secondary" onclick="editSiswa(\''+s.id+'\')" style="padding:4px 8px;font-size:12px">âœï¸</button> '+
+    '<button class="btn btn-danger" onclick="hapusSiswa(\''+s.id+'\')" style="padding:4px 8px;font-size:12px">ðŸ—‘ï¸</button></td></tr>';
   }).join('')+'</table></div>')+'</div>';
 }
 function showAddSiswa(editId){
@@ -1263,8 +1263,8 @@ function renderKelas(){
   kelas.map((k,i)=>{
     const jml=siswa.filter(s=>s.kelas===k.id).length;
     return '<tr><td>'+(i+1)+'</td><td>'+k.nama+'</td><td>'+jml+'</td><td>'+
-    '<button class="btn btn-secondary" onclick="editKelas(\''+k.id+'\')" style="padding:4px 8px;font-size:12px">✏️</button> '+
-    '<button class="btn btn-danger" onclick="hapusKelas(\''+k.id+'\')" style="padding:4px 8px;font-size:12px">🗑️</button></td></tr>';
+    '<button class="btn btn-secondary" onclick="editKelas(\''+k.id+'\')" style="padding:4px 8px;font-size:12px">âœï¸</button> '+
+    '<button class="btn btn-danger" onclick="hapusKelas(\''+k.id+'\')" style="padding:4px 8px;font-size:12px">ðŸ—‘ï¸</button></td></tr>';
   }).join('')+'</table></div></div>';
 }
 function showAddKelas(editId){
@@ -1298,12 +1298,12 @@ function hapusKelas(id){
 // ===== DATA MADRASAH + CETAK KARTU PELAJAR =====
 function renderDataMadrasah(){
  const x=DB.get('settings')||{};
- return '<div class="card" style="max-width:700px"><h3 style="color:#0b4965;margin:0 0 16px">🏫 Identitas Madrasah</h3>'+
+ return '<div class="card" style="max-width:700px"><h3 style="color:#0b4965;margin:0 0 16px">ðŸ« Identitas Madrasah</h3>'+
  '<label>Nama Yayasan</label><input id="dmYayasan" value="'+(x.namaYayasan||'')+'" style="margin-bottom:10px">'+
  '<label>Nama Madrasah</label><input id="dmNama" value="'+(x.namaSekolah||'')+'" style="margin-bottom:10px">'+
  '<label>Alamat</label><textarea id="dmAlamat" rows="3" style="width:100%;margin-bottom:10px">'+(x.alamat||'')+'</textarea>'+
  '<label>Logo</label><input type="file" id="dmLogo" accept="image/*" style="margin-bottom:10px">'+(x.logo?'<br><img src="'+x.logo+'" style="max-width:90px;max-height:90px;margin-bottom:10px">':'')+
- '<div><button class="btn btn-primary" onclick="saveDataMadrasah()">💾 Simpan Data Madrasah</button></div></div>';
+ '<div><button class="btn btn-primary" onclick="saveDataMadrasah()">ðŸ’¾ Simpan Data Madrasah</button></div></div>';
 }
 async function saveDataMadrasah(){
  const x=DB.get('settings')||{}, f=document.getElementById('dmLogo').files[0];
@@ -1311,26 +1311,29 @@ async function saveDataMadrasah(){
  if(f)x.logo=await logoFileToTransparentDataURL(f,300,300);DB.set('settings',x);document.getElementById('appTitle').textContent=x.namaSekolah||'Madrasah Hadir Digital';toast('Data madrasah disimpan');render();
 }
 function renderKartu(){
- const kelas=DB.get('kelas')||[],x=DB.get('settings')||{};
+ const kelas=DB.get('kelas')||[],siswa=DB.get('siswa')||[],x=DB.get('settings')||{};
  return '<div class="card no-print"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'+
- '<select id="kartuKelas" style="max-width:200px"><option value="all">Semua Kelas</option>'+kelas.map(k=>'<option value="'+k.id+'">'+k.nama+'</option>').join('')+'</select>'+
- '<input id="kartuSearch" placeholder="Cari nama/NISN..." style="max-width:180px">'+
+ '<select id="kartuKelas" onchange="generateQRCards()" style="max-width:200px"><option value="all">Semua Kelas</option>'+kelas.map(k=>'<option value="'+k.id+'">'+k.nama+'</option>').join('')+'</select>'+
+ '<select id="kartuSiswa" onchange="generateQRCards()" style="max-width:220px"><option value="all">Semua Siswa</option>'+siswa.map(s=>'<option value="'+s.id+'">'+s.nama+' â€” '+(s.nisn||'-')+'</option>').join('')+'</select>'+
+ '<input id="kartuSearch" placeholder="Cari nama/NISN..." oninput="generateQRCards()" style="max-width:180px">'+
  '<select id="kartuSize" onchange="generateQRCards()" style="max-width:120px"><option value="small">Kecil</option><option value="medium" selected>Sedang</option><option value="large">Besar</option></select>'+
  '<select id="kartuMode" onchange="generateQRCards()" style="max-width:180px"><option value="full">Kartu Lengkap</option><option value="qronly">QR Saja</option></select></div>'+
- '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" onclick="generateQRCards()">🔄 Generate</button><button class="btn btn-secondary" onclick="window.print()">🖨️ Cetak</button>'+
- '<button class="btn btn-secondary" onclick="document.getElementById(\'templateFile\').click()">🖼️ Upload Template Kartu</button><input hidden type="file" id="templateFile" accept="image/*" onchange="uploadCardTemplate(event)">'+
+ '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" onclick="generateQRCards()">ðŸ”„ Generate</button><button class="btn btn-secondary" onclick="cetakKartu()">ðŸ–¨ï¸ Cetak</button>'+
+ '<button class="btn btn-secondary" onclick="document.getElementById(\'templateFile\').click()">ðŸ–¼ï¸ Upload Template Kartu</button><input hidden type="file" id="templateFile" accept="image/*" onchange="uploadCardTemplate(event)">'+
  (x.cardTemplate?'<button class="btn btn-danger" onclick="resetCardTemplate()">Reset Template</button>':'')+'</div></div><div id="qrCards" class="print-area" style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start"></div>';
 }
 async function uploadCardTemplate(e){const f=e.target.files[0];if(!f)return;const x=DB.get('settings')||{};x.cardTemplate=await imageFileToDataURL(f,1400,900);DB.set('settings',x);toast('Template kartu disimpan');generateQRCards()}
 function resetCardTemplate(){const x=DB.get('settings')||{};delete x.cardTemplate;DB.set('settings',x);toast('Template bawaan dipulihkan');render()}
+function cetakKartu(){const c=document.getElementById('qrCards');if(!c||!c.children.length){generateQRCards();setTimeout(()=>window.print(),100);return}window.print();}
 function generateQRCards(){
- const kf=document.getElementById('kartuKelas')?.value||'all',q=(document.getElementById('kartuSearch')?.value||'').toLowerCase(),size=document.getElementById('kartuSize')?.value||'medium',mode=document.getElementById('kartuMode')?.value||'full';
+ const kf=document.getElementById('kartuKelas')?.value||'all',sf=document.getElementById('kartuSiswa')?.value||'all',q=(document.getElementById('kartuSearch')?.value||'').trim().toLowerCase(),size=document.getElementById('kartuSize')?.value||'medium',mode=document.getElementById('kartuMode')?.value||'full';
  let ss=DB.get('siswa')||[];const ks=DB.get('kelas')||[],x=DB.get('settings')||{},box={small:[330,208,.78],medium:[480,302,1],large:[650,409,1.3]}[size],w=box[0],h=box[1],z=box[2];
- if(kf!=='all')ss=ss.filter(s=>s.kelas===kf);if(q)ss=ss.filter(s=>(s.nama||'').toLowerCase().includes(q)||(s.nisn||'').toLowerCase().includes(q));const c=document.getElementById('qrCards');if(!c)return;
+ if(kf!=='all')ss=ss.filter(s=>String(s.kelas)===String(kf));if(sf!=='all')ss=ss.filter(s=>String(s.id)===String(sf));if(q)ss=ss.filter(s=>String(s.nama||'').toLowerCase().includes(q)||String(s.nisn||'').toLowerCase().includes(q));const c=document.getElementById('qrCards');if(!c)return;
+ if(!ss.length){c.innerHTML='<p style="color:#6b7280">Siswa tidak ditemukan.</p>';return;}
  if(mode==='qronly'){c.innerHTML=ss.map(s=>'<div style="width:'+Math.round(135*z)+'px;text-align:center;background:#fff;padding:10px;border:1px solid #bbb;border-radius:8px"><div id="qr-'+s.id+'"></div><b style="font-size:'+Math.round(10*z)+'px">'+s.nama+'</b></div>').join('');ss.forEach(s=>new QRCode(document.getElementById('qr-'+s.id),{text:s.id,width:Math.round(105*z),height:Math.round(105*z)}));return}
  c.innerHTML=ss.map(s=>{const k=ks.find(a=>a.id===s.kelas),bg=x.cardTemplate?'background-image:linear-gradient(#ffffff18,#ffffff18),url('+x.cardTemplate+');background-size:cover;background-position:center;':'background:linear-gradient(160deg,#fff 68%,#f9c900 68%);';return '<div style="position:relative;width:'+w+'px;height:'+h+'px;overflow:hidden;border-radius:'+Math.round(13*z)+'px;color:#073c57;font-family:Arial;'+bg+'box-shadow:0 2px 9px #0003">'+
  (x.cardTemplate?'':'<div style="height:'+Math.round(78*z)+'px;background:#064766;color:#fff;display:flex;align-items:center;padding:0 '+Math.round(18*z)+'px;gap:'+Math.round(14*z)+'px">'+(x.logo?'<img src="'+x.logo+'" style="width:'+Math.round(52*z)+'px;height:'+Math.round(52*z)+'px;object-fit:contain">':'')+'<div style="text-align:center;flex:1"><b style="font-size:'+Math.round(13*z)+'px">'+(x.namaYayasan||'YAYASAN PENDIDIKAN ISLAM')+'</b><div style="font-size:'+Math.round(19*z)+'px;font-weight:800">'+(x.namaSekolah||'MADRASAH')+'</div><small>'+ (x.alamat||'')+'</small></div></div>')+
- '<div style="position:absolute;left:'+Math.round(20*z)+'px;top:'+Math.round(96*z)+'px;width:'+Math.round(90*z)+'px;height:'+Math.round(120*z)+'px;border-radius:12px;overflow:hidden;background:#dbeafe">'+(s.photo?'<img src="'+s.photo+'" style="width:100%;height:100%;object-fit:cover">':'<div style="font-size:'+Math.round(45*z)+'px;text-align:center;padding-top:'+Math.round(28*z)+'px">👤</div>')+'</div>'+
+ '<div style="position:absolute;left:'+Math.round(20*z)+'px;top:'+Math.round(96*z)+'px;width:'+Math.round(90*z)+'px;height:'+Math.round(120*z)+'px;border-radius:12px;overflow:hidden;background:#dbeafe">'+(s.photo?'<img src="'+s.photo+'" style="width:100%;height:100%;object-fit:cover">':'<div style="font-size:'+Math.round(45*z)+'px;text-align:center;padding-top:'+Math.round(28*z)+'px">ðŸ‘¤</div>')+'</div>'+
  (x.cardTemplate
  ? '<div style="position:absolute;left:'+Math.round(224*z)+'px;top:'+Math.round(139*z)+'px;font-size:'+Math.round(11*z)+'px;color:#073c57;display:grid;grid-template-rows:repeat(5,'+Math.round(16*z)+'px);align-items:center"><div>'+s.nama+'</div><div>'+(s.nisn||'-')+'</div><div>'+(k?k.nama:'-')+'</div><div>'+(s.namaOrtu||'-')+'</div><div>'+(s.noWaOrtu||'-')+'</div></div>'
  : '<div style="position:absolute;left:'+Math.round(125*z)+'px;top:'+Math.round(91*z)+'px;font-size:'+Math.round(11*z)+'px;line-height:1.5"><div style="font-size:'+Math.round(20*z)+'px;font-weight:900;margin-bottom:'+Math.round(8*z)+'px">KARTU PELAJAR SISWA</div><div style="display:grid;grid-template-columns:'+Math.round(105*z)+'px 8px '+Math.round(145*z)+'px"><b>Nama Lengkap</b><span>:</span><span>'+s.nama+'</span><b>NIS</b><span>:</span><span>'+(s.nisn||'-')+'</span><b>Kelas</b><span>:</span><span>'+(k?k.nama:'-')+'</span><b>Nama Orang Tua</b><span>:</span><span>'+(s.namaOrtu||'-')+'</span><b>No. HP Orang Tua</b><span>:</span><span>'+(s.noWaOrtu||'-')+'</span></div></div>')+
@@ -1362,10 +1365,10 @@ function renderRekap(){
     kelas.map(k=>'<label style="font-size:12px"><input type="checkbox" class="rekapKelas" value="'+k.id+'" checked> '+k.nama+'</label>').join('')+
   '</div></div>'+
   '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">'+
-    '<button class="btn btn-primary" onclick="loadRekap()">🔍 Tampilkan</button>'+
-    '<button class="btn btn-secondary" onclick="cetakRekap()">🖨️ Cetak</button>'+
-    '<button class="btn btn-secondary" onclick="exportRekapCSV()">📄 Export CSV</button>'+
-    '<button class="btn btn-secondary" onclick="exportRekapPDF()">📄 Export PDF</button>'+
+    '<button class="btn btn-primary" onclick="loadRekap()">ðŸ” Tampilkan</button>'+
+    '<button class="btn btn-secondary" onclick="cetakRekap()">ðŸ–¨ï¸ Cetak</button>'+
+    '<button class="btn btn-secondary" onclick="exportRekapCSV()">ðŸ“„ Export CSV</button>'+
+    '<button class="btn btn-secondary" onclick="exportRekapPDF()">ðŸ“„ Export PDF</button>'+
   '</div></div>'+
   '<div id="rekapTable" class="print-area"></div>';
 }
@@ -1477,11 +1480,11 @@ function downloadPanduanPDF(){
   doc.setFontSize(11);
   doc.setTextColor(107, 114, 128);
   doc.setFont('helvetica', 'normal');
-  doc.text('Panduan Penggunaan — Sistem Presensi', pageW / 2, y, { align: 'center' });
+  doc.text('Panduan Penggunaan â€” Sistem Presensi', pageW / 2, y, { align: 'center' });
   y += 6;
   doc.setFontSize(7);
   doc.setTextColor(156, 163, 175);
-  doc.text('Dibuat oleh: Subariyanto, S.Pd, M.Pd.I. — Ketua Pokjawas Kab. Jember', pageW / 2, y, { align: 'center' });
+  doc.text('Dibuat oleh: Subariyanto, S.Pd, M.Pd.I. â€” Ketua Pokjawas Kab. Jember', pageW / 2, y, { align: 'center' });
   y += 8;
 
   // Garis
@@ -1520,7 +1523,7 @@ function downloadPanduanPDF(){
     '(2) Masukkan kode aktivasi, contoh: MHD-ALHIKMAH-2026. ' +
     '(3) Atau klik "Coba Gratis 5 Hari" untuk trial tanpa kode. ' +
     '(4) Setelah aktivasi, aplikasi langsung bisa digunakan. ' +
-    'Trial habis → mode read-only, data tetap bisa dibuka tapi tidak bisa tambah/ubah/hapus.'
+    'Trial habis â†’ mode read-only, data tetap bisa dibuka tapi tidak bisa tambah/ubah/hapus.'
   );
 
   addSection('2', 'Data Siswa & Kelas',
@@ -1531,14 +1534,14 @@ function downloadPanduanPDF(){
   );
 
   addSection('3', 'Presensi Siswa',
-    'Dua cara: (A) Presensi Manual — pilih kelas, klik status tiap siswa (Hadir/Sakit/Izin/Alpha/Terlambat/Dinas). ' +
+    'Dua cara: (A) Presensi Manual â€” pilih kelas, klik status tiap siswa (Hadir/Sakit/Izin/Alpha/Terlambat/Dinas). ' +
     'Status tersimpan otomatis, bisa diubah kapan saja. ' +
-    '(B) Scan QR — arahkan kamera ke kartu QR siswa, data langsung tercatat "Hadir". ' +
+    '(B) Scan QR â€” arahkan kamera ke kartu QR siswa, data langsung tercatat "Hadir". ' +
     'Cocok untuk presensi cepat di pagi hari. Klik "Ganti Kamera" jika kamera tidak muncul.'
   );
 
   addSection('4', 'Cetak Kartu QR Siswa',
-    'Pilih kelas → muncul kartu QR semua siswa dalam grid. ' +
+    'Pilih kelas â†’ muncul kartu QR semua siswa dalam grid. ' +
     'Klik "Cetak Semua Kartu" untuk print seluruh kartu (format A4, 8 kartu per halaman). ' +
     'Bisa juga cetak per siswa dengan klik kartu individual. ' +
     'Kartu dipotong dan dibagikan ke siswa untuk scan harian.'
@@ -1551,10 +1554,10 @@ function downloadPanduanPDF(){
   );
 
   addSection('6', 'Rekap Presensi',
-    'Rekap Siswa: pilih kelas dan rentang tanggal → tabel rekap muncul. ' +
+    'Rekap Siswa: pilih kelas dan rentang tanggal â†’ tabel rekap muncul. ' +
     'Lihat rekap: Hadir/Sakit/Izin/Alpha/Terlambat per siswa. ' +
-    'Export PDF — download laporan rekap siap cetak. ' +
-    'Export Excel (CSV) — buka di Excel untuk olah data lanjutan. ' +
+    'Export PDF â€” download laporan rekap siap cetak. ' +
+    'Export Excel (CSV) â€” buka di Excel untuk olah data lanjutan. ' +
     'Rekap Guru: format sama, khusus data guru.'
   );
 
@@ -1575,7 +1578,7 @@ function downloadPanduanPDF(){
 
   addSection('9', 'Tips & FAQ',
     'Q: Data hilang setelah ganti HP? ' +
-    'A: Backup dulu di HP lama (Pengaturan → Backup), lalu restore di HP baru (Pengaturan → Restore). ' +
+    'A: Backup dulu di HP lama (Pengaturan â†’ Backup), lalu restore di HP baru (Pengaturan â†’ Restore). ' +
     'Q: Bisa pakai offline? A: Ya, aplikasi ini PWA, bisa di-install di HP/laptop dan dipakai tanpa internet. ' +
     'Klik "Pasang" di banner bawah. ' +
     'Q: Scan QR tidak muncul kamera? A: Pastikan izin kamera sudah diaktifkan di browser. Klik "Ganti Kamera" untuk switch kamera depan/belakang. ' +
@@ -1593,7 +1596,7 @@ function downloadPanduanPDF(){
   doc.setFontSize(7);
   doc.setTextColor(156, 163, 175);
   doc.setFont('helvetica', 'normal');
-  doc.text('Madrasah Hadir Digital — ' + (settings.namaSekolah || lisensi.madrasah || '') + ' | ' + new Date().toLocaleDateString('id-ID'), pageW / 2, y, { align: 'center' });
+  doc.text('Madrasah Hadir Digital â€” ' + (settings.namaSekolah || lisensi.madrasah || '') + ' | ' + new Date().toLocaleDateString('id-ID'), pageW / 2, y, { align: 'center' });
 
   doc.save('panduan-madrasah-hadir-digital.pdf');
 }
@@ -1601,31 +1604,31 @@ function downloadPanduanPDF(){
 function renderPanduan(){
   return `
 <div class="card" style="margin-bottom:16px">
-<h3 style="font-size:16px;color:#15803d;margin:0 0 4px">📖 Panduan Penggunaan</h3>
-<p style="font-size:13px;color:#6b7280;margin:0 0 16px">Madrasah Hadir Digital — Sistem Presensi</p>
-<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="downloadPanduanPDF()">📥 Download PDF</button></div>
+<h3 style="font-size:16px;color:#15803d;margin:0 0 4px">ðŸ“– Panduan Penggunaan</h3>
+<p style="font-size:13px;color:#6b7280;margin:0 0 16px">Madrasah Hadir Digital â€” Sistem Presensi</p>
+<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="downloadPanduanPDF()">ðŸ“¥ Download PDF</button></div>
 
 <div style="display:flex;flex-direction:column;gap:16px">
 
 <!-- AKTIVASI -->
 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
-<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">🔑 1. Aktivasi Aplikasi</h4>
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">ðŸ”‘ 1. Aktivasi Aplikasi</h4>
 <div style="font-size:13px;color:#374151;line-height:1.7">
 <p>Setiap madrasah mendapat <strong>kode aktivasi</strong> unik dari admin (Subariyanto).</p>
 <p><strong>Langkah:</strong></p>
 <ol style="padding-left:20px;margin:4px 0">
-<li>Buka aplikasi → akan muncul layar <em>"Aktivasi Aplikasi"</em></li>
+<li>Buka aplikasi â†’ akan muncul layar <em>"Aktivasi Aplikasi"</em></li>
 <li>Masukkan kode aktivasi (contoh: <code style="background:#f0fdf4;padding:2px 6px;border-radius:4px;font-size:12px">MHD-ALHIKMAH-2026</code>)</li>
 <li>Atau klik <strong>"Coba Gratis 5 Hari"</strong> untuk trial tanpa kode</li>
 <li>Setelah aktivasi, aplikasi langsung bisa digunakan</li>
 </ol>
-<p style="font-size:12px;color:#6b7280;margin-top:8px">⚠️ Trial habis → mode read-only. Data tetap bisa dibuka tapi tidak bisa tambah/ubah/hapus. Hubungi Subariyanto untuk aktivasi kode FULL.</p>
+<p style="font-size:12px;color:#6b7280;margin-top:8px">âš ï¸ Trial habis â†’ mode read-only. Data tetap bisa dibuka tapi tidak bisa tambah/ubah/hapus. Hubungi Subariyanto untuk aktivasi kode FULL.</p>
 </div>
 </div>
 
 <!-- DATA SISWA & KELAS -->
 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
-<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">👨‍🎓 2. Data Siswa & Kelas</h4>
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">ðŸ‘¨â€ðŸŽ“ 2. Data Siswa & Kelas</h4>
 <div style="font-size:13px;color:#374151;line-height:1.7">
 <p>Sebelum presensi, pastikan data siswa dan kelas sudah diinput:</p>
 <ul style="padding-left:20px;margin:4px 0">
@@ -1636,49 +1639,49 @@ function renderPanduan(){
 <p style="margin-top:12px"><strong>Cara Import Data Siswa Banyak (CSV):</strong></p>
 <ol style="padding-left:20px;margin:4px 0">
 <li>Buka menu <strong>Data Siswa</strong></li>
-<li>Klik tombol <strong>"⬇️ Download Template"</strong> (di sebelah tombol Import)</li>
+<li>Klik tombol <strong>"â¬‡ï¸ Download Template"</strong> (di sebelah tombol Import)</li>
 <li>Buka file <code style="background:#f0fdf4;padding:2px 6px;border-radius:4px;font-size:12px">template-siswa.csv</code> dengan Excel atau Google Sheets</li>
 <li>Isi data siswa sesuai kolom: <strong>NIS</strong>, <strong>Nama</strong>, <strong>Kelas</strong></li>
 <li>Simpan file (tetap format CSV)</li>
-<li>Kembali ke aplikasi, klik <strong>"📂 Import CSV"</strong></li>
-<li>Pilih file CSV yang sudah diisi → klik Open</li>
+<li>Kembali ke aplikasi, klik <strong>"ðŸ“‚ Import CSV"</strong></li>
+<li>Pilih file CSV yang sudah diisi â†’ klik Open</li>
 <li>Data siswa otomatis masuk ke aplikasi</li>
 </ol>
-<p style="font-size:12px;color:#6b7280;margin-top:8px">💡 <strong>Tips:</strong> Pastikan tidak ada baris kosong di tengah data. Format: NIS,Nama,Kelas (contoh: 12345,Ahmad Rizki,X-A)</p>
+<p style="font-size:12px;color:#6b7280;margin-top:8px">ðŸ’¡ <strong>Tips:</strong> Pastikan tidak ada baris kosong di tengah data. Format: NIS,Nama,Kelas (contoh: 12345,Ahmad Rizki,X-A)</p>
 </div>
 </div>
 
 <!-- IMPORT DATA GURU -->
 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
-<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">👨‍🏫 2b. Import Data Guru (CSV)</h4>
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">ðŸ‘¨â€ðŸ« 2b. Import Data Guru (CSV)</h4>
 <div style="font-size:13px;color:#374151;line-height:1.7">
 <p>Sama seperti data siswa, data guru juga bisa diimport massal:</p>
 <ol style="padding-left:20px;margin:4px 0">
 <li>Buka menu <strong>Data Guru</strong></li>
-<li>Klik <strong>"⬇️ Download Template"</strong></li>
+<li>Klik <strong>"â¬‡ï¸ Download Template"</strong></li>
 <li>Isi file <code style="background:#f0fdf4;padding:2px 6px;border-radius:4px;font-size:12px">template-guru.csv</code> dengan kolom: <strong>NIP</strong>, <strong>Nama</strong>, <strong>Mapel</strong>, <strong>Jabatan</strong></li>
 <li>Simpan sebagai CSV</li>
-<li>Klik <strong>"📂 Import CSV"</strong> di menu Data Guru</li>
-<li>Pilih file → data guru otomatis masuk</li>
+<li>Klik <strong>"ðŸ“‚ Import CSV"</strong> di menu Data Guru</li>
+<li>Pilih file â†’ data guru otomatis masuk</li>
 </ol>
 </div>
 </div>
 
 <!-- PRESENSI SISWA -->
 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
-<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">✅ 3. Presensi Siswa</h4>
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">âœ… 3. Presensi Siswa</h4>
 <div style="font-size:13px;color:#374151;line-height:1.7">
 <p>Dua cara melakukan presensi siswa:</p>
 <p><strong>A. Presensi Manual</strong></p>
 <ul style="padding-left:20px;margin:4px 0">
-<li>Pilih <strong>kelas</strong> → muncul daftar siswa</li>
+<li>Pilih <strong>kelas</strong> â†’ muncul daftar siswa</li>
 <li>Klik status tiap siswa: Hadir / Sakit / Izin / Alpha / Terlambat / Dinas</li>
 <li>Status tersimpan otomatis. Bisa diubah kapan saja.</li>
 </ul>
 <p style="margin-top:8px"><strong>B. Scan QR</strong></p>
 <ul style="padding-left:20px;margin:4px 0">
 <li>Pastikan kamera HP/laptop aktif</li>
-<li>Arahkan ke <strong>kartu QR siswa</strong> → data langsung tercatat "Hadir"</li>
+<li>Arahkan ke <strong>kartu QR siswa</strong> â†’ data langsung tercatat "Hadir"</li>
 <li>Cocok untuk presensi cepat di pagi hari</li>
 <li>Klik <strong>"Ganti Kamera"</strong> jika kamera tidak muncul</li>
 </ul>
@@ -1687,10 +1690,10 @@ function renderPanduan(){
 
 <!-- CETAK KARTU QR -->
 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
-<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">🪪 4. Cetak Kartu QR Siswa</h4>
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">ðŸªª 4. Cetak Kartu QR Siswa</h4>
 <div style="font-size:13px;color:#374151;line-height:1.7">
 <ul style="padding-left:20px;margin:4px 0">
-<li>Pilih kelas → muncul kartu QR semua siswa dalam grid</li>
+<li>Pilih kelas â†’ muncul kartu QR semua siswa dalam grid</li>
 <li>Klik <strong>"Cetak Semua Kartu"</strong> untuk print seluruh kartu (format A4, 8 kartu per halaman)</li>
 <li>Bisa juga cetak per siswa dengan klik kartu individual</li>
 <li>Kartu dipotong dan dibagikan ke siswa untuk scan harian</li>
@@ -1700,24 +1703,24 @@ function renderPanduan(){
 
 <!-- DATA GURU & PRESENSI GURU -->
 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
-<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">👨‍🏫 5. Data Guru & Presensi Guru</h4>
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">ðŸ‘¨â€ðŸ« 5. Data Guru & Presensi Guru</h4>
 <div style="font-size:13px;color:#374151;line-height:1.7">
 <p><strong>Data Guru:</strong> tambah/edit data guru (NIP, nama, mapel, jabatan)</p>
-<p><strong>Presensi Guru:</strong> mirip presensi siswa — pilih manual atau scan QR Guru</p>
+<p><strong>Presensi Guru:</strong> mirip presensi siswa â€” pilih manual atau scan QR Guru</p>
 <p><strong>Cetak QR Guru:</strong> setiap guru punya kartu QR untuk scan presensi</p>
 </div>
 </div>
 
 <!-- REKAP & EXPORT -->
 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
-<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">📋 6. Rekap Presensi</h4>
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">ðŸ“‹ 6. Rekap Presensi</h4>
 <div style="font-size:13px;color:#374151;line-height:1.7">
 <p><strong>Rekap Siswa:</strong></p>
 <ul style="padding-left:20px;margin:4px 0">
-<li>Pilih kelas dan rentang tanggal → tabel rekap muncul</li>
+<li>Pilih kelas dan rentang tanggal â†’ tabel rekap muncul</li>
 <li>Lihat rekap: Hadir / Sakit / Izin / Alpha / Terlambat per siswa</li>
-<li><strong>Export PDF</strong> — download laporan rekap siap cetak</li>
-<li><strong>Export Excel (CSV)</strong> — buka di Excel untuk olah data lanjutan</li>
+<li><strong>Export PDF</strong> â€” download laporan rekap siap cetak</li>
+<li><strong>Export Excel (CSV)</strong> â€” buka di Excel untuk olah data lanjutan</li>
 </ul>
 <p style="margin-top:8px"><strong>Rekap Guru:</strong> format sama, khusus data guru</p>
 </div>
@@ -1725,7 +1728,7 @@ function renderPanduan(){
 
 <!-- DASHBOARD -->
 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
-<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">📊 7. Dashboard</h4>
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">ðŸ“Š 7. Dashboard</h4>
 <div style="font-size:13px;color:#374151;line-height:1.7">
 <ul style="padding-left:20px;margin:4px 0">
 <li>Ringkasan kehadiran siswa & guru <strong>hari ini</strong></li>
@@ -1738,7 +1741,7 @@ function renderPanduan(){
 
 <!-- PENGATURAN -->
 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px">
-<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">⚙️ 8. Pengaturan</h4>
+<h4 style="font-size:14px;color:#15803d;margin:0 0 8px">âš™ï¸ 8. Pengaturan</h4>
 <div style="font-size:13px;color:#374151;line-height:1.7">
 <ul style="padding-left:20px;margin:4px 0">
 <li><strong>Nama Madrasah:</strong> tampil di header aplikasi & laporan</li>
@@ -1753,10 +1756,10 @@ function renderPanduan(){
 
 <!-- TIPS -->
 <div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px;background:#fefce8">
-<h4 style="font-size:14px;color:#854d0e;margin:0 0 8px">💡 Tips & FAQ</h4>
+<h4 style="font-size:14px;color:#854d0e;margin:0 0 8px">ðŸ’¡ Tips & FAQ</h4>
 <div style="font-size:13px;color:#374151;line-height:1.7">
-<p><strong>Q: Data hilang setelah ganti HP?</strong><br>A: Backup dulu di HP lama (Pengaturan → Backup), lalu restore di HP baru (Pengaturan → Restore).</p>
-<p><strong>Q: Bisa pakai offline?</strong><br>A: Ya, aplikasi ini PWA — bisa di-install di HP/laptop dan dipakai tanpa internet. Klik "Pasang" di banner bawah.</p>
+<p><strong>Q: Data hilang setelah ganti HP?</strong><br>A: Backup dulu di HP lama (Pengaturan â†’ Backup), lalu restore di HP baru (Pengaturan â†’ Restore).</p>
+<p><strong>Q: Bisa pakai offline?</strong><br>A: Ya, aplikasi ini PWA â€” bisa di-install di HP/laptop dan dipakai tanpa internet. Klik "Pasang" di banner bawah.</p>
 <p><strong>Q: Scan QR tidak muncul kamera?</strong><br>A: Pastikan izin kamera sudah diaktifkan di browser. Klik "Ganti Kamera" untuk switch kamera depan/belakang.</p>
 <p><strong>Q: Bagaimana cara import data siswa banyak?</strong><br>A: Siapkan file CSV dengan format: <code style="background:#f0fdf4;padding:2px 6px;border-radius:4px;font-size:12px">NIS,Nama,Kelas</code> lalu import di menu Data Siswa.</p>
 <p><strong>Q: Kode aktivasi tidak berlaku?</strong><br>A: Hubungi <strong>Subariyanto, S.Pd, M.Pd.I.</strong> (Ketua Pokjawas Kab. Jember) untuk kode baru.</p>
@@ -2286,14 +2289,14 @@ function boot(){
   // Cek apakah ini halaman admin (?mode=admin)
   var isAdminMode = window.location.search.indexOf('mode=admin') !== -1;
   if(isAdminMode){
-    // Admin: kalau sudah login → langsung masuk dashboard
+    // Admin: kalau sudah login â†’ langsung masuk dashboard
     if(localStorage.getItem('loggedIn')==='true'){
       loggedIn=true;
       ensureAdminLisensi();
       initApp();
       return;
     }
-    // Belum login → tampilkan login screen
+    // Belum login â†’ tampilkan login screen
     document.getElementById('loginScreen').style.display='flex';
     document.getElementById('aktivasiScreen').style.display='none';
     setTimeout(function(){
@@ -2318,13 +2321,13 @@ function boot(){
   if(lisensi && lisensi.tier==='full'){
     var now = new Date().toISOString().slice(0,10);
     if(lisensi.berlaku >= now){
-      // Lisensi valid → auto-login, langsung dashboard
+      // Lisensi valid â†’ auto-login, langsung dashboard
       localStorage.setItem('loggedIn','true');
       loggedIn=true;
       initApp();
       return;
     } else {
-      // Lisensi expired → hapus, tampilkan aktivasi
+      // Lisensi expired â†’ hapus, tampilkan aktivasi
       _DBraw.del('lisensi');
       showAktivasi('Lisensi sudah kadaluarsa. Hubungi Subariyanto untuk kode baru.');
       return;
@@ -2337,7 +2340,7 @@ function boot(){
     initApp();
     return;
   }
-  // Belum ada lisensi → tampilkan layar aktivasi
+  // Belum ada lisensi â†’ tampilkan layar aktivasi
   document.getElementById('aktivasiScreen').style.display='flex';
   document.getElementById('loginScreen').style.display='none';
 }
@@ -2400,3 +2403,5 @@ boot();
 </script>
 </body>
 </html>
+
+
