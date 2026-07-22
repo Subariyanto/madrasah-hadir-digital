@@ -1077,6 +1077,8 @@ async function saveSiswa(editId){
   toast(editId?'Data siswa diupdate':'Siswa berhasil ditambahkan');
 }
 function imageFileToDataURL(file,maxW,maxH){return new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=reject;r.onload=()=>{const im=new Image();im.onerror=reject;im.onload=()=>{let q=Math.min(1,maxW/im.width,maxH/im.height),c=document.createElement('canvas');c.width=Math.round(im.width*q);c.height=Math.round(im.height*q);c.getContext('2d').drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.78))};im.src=r.result};r.readAsDataURL(file)})}
+// Hilangkan blok warna latar logo berdasarkan warna rata-rata keempat sudut; simpan PNG transparan.
+function logoFileToTransparentDataURL(file,maxW,maxH){return new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=reject;r.onload=()=>{const im=new Image();im.onerror=reject;im.onload=()=>{const q=Math.min(1,maxW/im.width,maxH/im.height),c=document.createElement('canvas');c.width=Math.round(im.width*q);c.height=Math.round(im.height*q);const g=c.getContext('2d');g.drawImage(im,0,0,c.width,c.height);const d=g.getImageData(0,0,c.width,c.height),p=d.data,pts=[[0,0],[c.width-1,0],[0,c.height-1],[c.width-1,c.height-1]];let br=0,bg=0,bb=0;pts.forEach(a=>{const i=(a[1]*c.width+a[0])*4;br+=p[i];bg+=p[i+1];bb+=p[i+2]});br/=4;bg/=4;bb/=4;for(let i=0;i<p.length;i+=4){const dist=Math.sqrt((p[i]-br)**2+(p[i+1]-bg)**2+(p[i+2]-bb)**2);if(dist<42)p[i+3]=0;else if(dist<72)p[i+3]=Math.round(255*(dist-42)/30)}g.putImageData(d,0,0);resolve(c.toDataURL('image/png'))};im.src=r.result};r.readAsDataURL(file)})}
 function hapusSiswa(id){
   if(!confirmDialog('Hapus siswa ini?'))return;
   DB.set('siswa',(DB.get('siswa')||[]).filter(s=>s.id!==id));render();
@@ -1304,7 +1306,7 @@ function renderDataMadrasah(){
 async function saveDataMadrasah(){
  const x=DB.get('settings')||{}, f=document.getElementById('dmLogo').files[0];
  x.namaYayasan=document.getElementById('dmYayasan').value.trim();x.namaSekolah=document.getElementById('dmNama').value.trim();x.alamat=document.getElementById('dmAlamat').value.trim();
- if(f)x.logo=await imageFileToDataURL(f,300,300);DB.set('settings',x);document.getElementById('appTitle').textContent=x.namaSekolah||'Madrasah Hadir Digital';toast('Data madrasah disimpan');render();
+ if(f)x.logo=await logoFileToTransparentDataURL(f,300,300);DB.set('settings',x);document.getElementById('appTitle').textContent=x.namaSekolah||'Madrasah Hadir Digital';toast('Data madrasah disimpan');render();
 }
 function renderKartu(){
  const kelas=DB.get('kelas')||[],x=DB.get('settings')||{};
