@@ -173,6 +173,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <a href="#" onclick="nav('scan')" id="nav-scan">📷 Scan QR</a>
 <a href="#" onclick="nav('siswa')" id="nav-siswa">👨‍🎓 Data Siswa</a>
 <a href="#" onclick="nav('kelas')" id="nav-kelas">🏫 Data Kelas</a>
+<a href="#" onclick="nav('madrasah')" id="nav-madrasah">🏫 Data Madrasah</a>
 <a href="#" onclick="nav('kartu')" id="nav-kartu">🪪 Cetak Kartu QR</a>
 <a href="#" onclick="nav('rekap')" id="nav-rekap">📋 Rekap Presensi</a>
 <a href="#" onclick="nav('guru')" id="nav-guru">👨‍🏫 Data Guru</a>
@@ -275,14 +276,19 @@ function _mhdSetSyncStatus(text,state){
   const el=document.getElementById('mhdSyncStatus'); if(!el)return;
   el.textContent=text; el.style.color=state==='error'?'#fecaca':state==='busy'?'#fef08a':'#bbf7d0';
 }
-function _mhdLocalPayload(){return {kelas:_DBraw.get('kelas')||[],siswa:_DBraw.get('siswa')||[],guru:_DBraw.get('teachers')||[],presensi:_DBraw.get('presensi')||[],presensiGuru:_DBraw.get('teacherAttendance')||[],settings:_DBraw.get('settings')||{}};}
+function _mhdLocalPayload(){
+  const siswa=_DBraw.get('siswa')||[], settings=Object.assign({},_DBraw.get('settings')||{});
+  settings.studentPhotos={}; siswa.forEach(s=>{if(s.photo)settings.studentPhotos[s.id]=s.photo;});
+  return {kelas:_DBraw.get('kelas')||[],siswa,guru:_DBraw.get('teachers')||[],presensi:_DBraw.get('presensi')||[],presensiGuru:_DBraw.get('teacherAttendance')||[],settings};
+}
 function _mhdCloudHasData(d){return ['kelas','siswa','guru','presensi','presensiGuru'].some(k=>d[k]&&d[k].length);}
 function _mhdLocalHasData(){const d=_mhdLocalPayload();return ['kelas','siswa','guru','presensi','presensiGuru'].some(k=>d[k].length);}
 function _mhdApplyCloud(d){
   _mhdApplyingCloud=true;
   try{
     _DBraw.set('kelas',(d.kelas||[]).map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})));
-    _DBraw.set('siswa',(d.siswa||[]).map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||''})));
+    const cloudExtras=d.settings&&d.settings.extras||{}, photos=cloudExtras.studentPhotos||{};
+    _DBraw.set('siswa',(d.siswa||[]).map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||s.nis||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||'',photo:photos[s.id]||''})));
     _DBraw.set('teachers',(d.guru||[]).map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})));
     _DBraw.set('presensi',(d.presensi||[]).map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu||'',keterangan:p.keterangan||''})));
     _DBraw.set('teacherAttendance',(d.presensiGuru||[]).map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
@@ -645,7 +651,7 @@ function nav(page){
   currentPage=page;
   document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
   const el=document.getElementById('nav-'+page);if(el)el.classList.add('active');
-  const titles={home:'Beranda',dashboard:'Dashboard',presensi:'Presensi Manual',scan:'Scan QR',siswa:'Data Siswa',kelas:'Data Kelas',kartu:'Cetak Kartu QR',rekap:'Rekap Presensi',guru:'Data Guru',presensiGuru:'Presensi Guru',rekapGuru:'Rekap Presensi Guru',kartuGuru:'Cetak QR Guru',panduan:'Panduan Penggunaan',pengaturan:'Pengaturan'};
+  const titles={home:'Beranda',dashboard:'Dashboard',presensi:'Presensi Manual',scan:'Scan QR',siswa:'Data Siswa',kelas:'Data Kelas',madrasah:'Data Madrasah',kartu:'Cetak Kartu QR',rekap:'Rekap Presensi',guru:'Data Guru',presensiGuru:'Presensi Guru',rekapGuru:'Rekap Presensi Guru',kartuGuru:'Cetak QR Guru',panduan:'Panduan Penggunaan',pengaturan:'Pengaturan'};
   document.getElementById('pageTitle').textContent=titles[page]||page;
   render();closeSidebarMobile();
 }
@@ -693,6 +699,7 @@ function render(){
     case'scan':c.innerHTML=renderScan();setTimeout(initScanner,100);break;
     case'siswa':c.innerHTML=renderSiswa();break;
     case'kelas':c.innerHTML=renderKelas();break;
+    case'madrasah':c.innerHTML=renderDataMadrasah();break;
     case'kartu':c.innerHTML=renderKartu();setTimeout(generateQRCards,100);break;
     case'rekap':c.innerHTML=renderRekap();break;
     case'guru':c.innerHTML=renderGuru();break;
@@ -1041,7 +1048,11 @@ function showAddSiswa(editId){
   '<label style="font-size:13px;color:#374151">Nama Orang Tua/Wali</label>'+
   '<input id="fOrtu" value="'+(s?s.namaOrtu||'':'')+'" style="margin-bottom:10px">'+
   '<label style="font-size:13px;color:#374151">No. WhatsApp Orang Tua</label>'+
-  '<input id="fWaOrtu" value="'+(s?s.noWaOrtu||'':'')+'" placeholder="08xxxxxxxxxx" style="margin-bottom:16px">'+
+  '<input id="fWaOrtu" value="'+(s?s.noWaOrtu||'':'')+'" placeholder="08xxxxxxxxxx" style="margin-bottom:10px">'+
+  '<label style="font-size:13px;color:#374151">Foto Siswa</label>'+
+  '<input type="file" id="fPhoto" accept="image/*" style="margin-bottom:8px">'+
+  '<input type="hidden" id="fPhotoOld" value="'+(s?s.photo||'':'')+'">'+
+  (s&&s.photo?'<img src="'+s.photo+'" style="width:65px;height:80px;object-fit:cover;border-radius:7px;margin-bottom:10px">':'')+
   '<div style="display:flex;gap:8px;justify-content:flex-end">'+
     '<button class="btn btn-secondary" onclick="this.closest(\'.overlay\').remove()">Batal</button>'+
     '<button class="btn btn-primary" onclick="saveSiswa(\''+(editId||'')+'\')">'+(s?'Update':'Simpan')+'</button>'+
@@ -1049,20 +1060,23 @@ function showAddSiswa(editId){
   document.body.insertAdjacentHTML('beforeend',html);
 }
 function editSiswa(id){showAddSiswa(id)}
-function saveSiswa(editId){
+async function saveSiswa(editId){
   const nama=document.getElementById('fNama').value.trim();
   const nisn=document.getElementById('fNisn').value.trim();
   const kelas=document.getElementById('fKelas').value;
   const namaOrtu=document.getElementById('fOrtu').value.trim();
   const noWaOrtu=document.getElementById('fWaOrtu').value.trim();
   if(!nama){toast('Nama harus diisi','error');return}
+  let photo=document.getElementById('fPhotoOld').value, file=document.getElementById('fPhoto').files[0];
+  if(file){try{photo=await imageFileToDataURL(file,360,480)}catch(e){toast('Foto gagal diproses','error');return}}
   let siswa=DB.get('siswa')||[];
-  if(editId){siswa=siswa.map(s=>s.id===editId?{...s,nama,nisn,kelas,namaOrtu,noWaOrtu}:s)}
-  else{siswa.push({id:'s'+Date.now(),nama,nisn,kelas,namaOrtu,noWaOrtu})}
+  if(editId){siswa=siswa.map(s=>s.id===editId?{...s,nama,nisn,kelas,namaOrtu,noWaOrtu,photo}:s)}
+  else{siswa.push({id:'s'+Date.now(),nama,nisn,kelas,namaOrtu,noWaOrtu,photo})}
   DB.set('siswa',siswa);
   document.querySelector('.overlay').remove();render();
   toast(editId?'Data siswa diupdate':'Siswa berhasil ditambahkan');
 }
+function imageFileToDataURL(file,maxW,maxH){return new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=reject;r.onload=()=>{const im=new Image();im.onerror=reject;im.onload=()=>{let q=Math.min(1,maxW/im.width,maxH/im.height),c=document.createElement('canvas');c.width=Math.round(im.width*q);c.height=Math.round(im.height*q);c.getContext('2d').drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.78))};im.src=r.result};r.readAsDataURL(file)})}
 function hapusSiswa(id){
   if(!confirmDialog('Hapus siswa ini?'))return;
   DB.set('siswa',(DB.get('siswa')||[]).filter(s=>s.id!==id));render();
@@ -1277,66 +1291,45 @@ function hapusKelas(id){
   DB.set('kelas',(DB.get('kelas')||[]).filter(k=>k.id!==id));render();
 }
 
-// ===== CETAK KARTU QR =====
+// ===== DATA MADRASAH + CETAK KARTU PELAJAR =====
+function renderDataMadrasah(){
+ const x=DB.get('settings')||{};
+ return '<div class="card" style="max-width:700px"><h3 style="color:#0b4965;margin:0 0 16px">🏫 Identitas Madrasah</h3>'+
+ '<label>Nama Yayasan</label><input id="dmYayasan" value="'+(x.namaYayasan||'')+'" style="margin-bottom:10px">'+
+ '<label>Nama Madrasah</label><input id="dmNama" value="'+(x.namaSekolah||'')+'" style="margin-bottom:10px">'+
+ '<label>Alamat</label><textarea id="dmAlamat" rows="3" style="width:100%;margin-bottom:10px">'+(x.alamat||'')+'</textarea>'+
+ '<label>Logo</label><input type="file" id="dmLogo" accept="image/*" style="margin-bottom:10px">'+(x.logo?'<br><img src="'+x.logo+'" style="max-width:90px;max-height:90px;margin-bottom:10px">':'')+
+ '<div><button class="btn btn-primary" onclick="saveDataMadrasah()">💾 Simpan Data Madrasah</button></div></div>';
+}
+async function saveDataMadrasah(){
+ const x=DB.get('settings')||{}, f=document.getElementById('dmLogo').files[0];
+ x.namaYayasan=document.getElementById('dmYayasan').value.trim();x.namaSekolah=document.getElementById('dmNama').value.trim();x.alamat=document.getElementById('dmAlamat').value.trim();
+ if(f)x.logo=await imageFileToDataURL(f,300,300);DB.set('settings',x);document.getElementById('appTitle').textContent=x.namaSekolah||'Madrasah Hadir Digital';toast('Data madrasah disimpan');render();
+}
 function renderKartu(){
-  const kelas=DB.get('kelas')||[];
-  return '<div class="card no-print">'+
-  '<div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
-    '<select id="kartuKelas" style="max-width:200px">'+
-      '<option value="all">Semua Kelas</option>'+
-      kelas.map(k=>'<option value="'+k.id+'">'+k.nama+'</option>').join('')+
-    '</select>'+
-    '<input id="kartuSearch" placeholder="Cari nama/NISN..." style="max-width:180px;padding:6px 10px">'+
-    '<select id="kartuSize" style="max-width:120px"><option value="small">Kecil</option><option value="medium" selected>Sedang</option><option value="large">Besar</option></select>'+
-    '<select id="kartuMode" style="max-width:180px"><option value="full">Kartu Lengkap</option><option value="qronly">QR Saja</option></select>'+
-  '</div>'+
-  '<div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap">'+
-    '<button class="btn btn-primary" onclick="generateQRCards()">\u{1F504} Generate</button>'+
-    '<button class="btn btn-secondary" onclick="window.print()">\u{1F5A8}\uFE0F Cetak</button>'+
-  '</div></div>'+
-  '<div id="qrCards" class="print-area" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"></div>';
+ const kelas=DB.get('kelas')||[],x=DB.get('settings')||{};
+ return '<div class="card no-print"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'+
+ '<select id="kartuKelas" style="max-width:200px"><option value="all">Semua Kelas</option>'+kelas.map(k=>'<option value="'+k.id+'">'+k.nama+'</option>').join('')+'</select>'+
+ '<input id="kartuSearch" placeholder="Cari nama/NISN..." style="max-width:180px">'+
+ '<select id="kartuSize" onchange="generateQRCards()" style="max-width:120px"><option value="small">Kecil</option><option value="medium" selected>Sedang</option><option value="large">Besar</option></select>'+
+ '<select id="kartuMode" onchange="generateQRCards()" style="max-width:180px"><option value="full">Kartu Lengkap</option><option value="qronly">QR Saja</option></select></div>'+
+ '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" onclick="generateQRCards()">🔄 Generate</button><button class="btn btn-secondary" onclick="window.print()">🖨️ Cetak</button>'+
+ '<button class="btn btn-secondary" onclick="document.getElementById(\'templateFile\').click()">🖼️ Upload Template Kartu</button><input hidden type="file" id="templateFile" accept="image/*" onchange="uploadCardTemplate(event)">'+
+ (x.cardTemplate?'<button class="btn btn-danger" onclick="resetCardTemplate()">Reset Template</button>':'')+'</div></div><div id="qrCards" class="print-area" style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start"></div>';
 }
+async function uploadCardTemplate(e){const f=e.target.files[0];if(!f)return;const x=DB.get('settings')||{};x.cardTemplate=await imageFileToDataURL(f,1400,900);DB.set('settings',x);toast('Template kartu disimpan');generateQRCards()}
+function resetCardTemplate(){const x=DB.get('settings')||{};delete x.cardTemplate;DB.set('settings',x);toast('Template bawaan dipulihkan');render()}
 function generateQRCards(){
-  const kelasFilter=document.getElementById('kartuKelas')?document.getElementById('kartuKelas').value:'all';
-  const search=document.getElementById('kartuSearch')?document.getElementById('kartuSearch').value.toLowerCase():'';
-  const size=document.getElementById('kartuSize')?document.getElementById('kartuSize').value:'medium';
-  const mode=document.getElementById('kartuMode')?document.getElementById('kartuMode').value:'full';
-  let siswa=DB.get('siswa')||[];
-  const kelas=DB.get('kelas')||[];
-  if(kelasFilter!=='all')siswa=siswa.filter(s=>s.kelas===kelasFilter);
-  if(search)siswa=siswa.filter(s=>s.nama.toLowerCase().includes(search)||(s.nisn&&s.nisn.toLowerCase().includes(search)));
-  const container=document.getElementById('qrCards');
-  if(!container)return;
-  if(siswa.length===0){container.innerHTML='<p style="color:#6b7280;font-size:13px">Tidak ada siswa untuk ditampilkan.</p>';return}
-  const settings=DB.get('settings')||{};
-  const qrSize=size==='small'?80:size==='large'?150:100;
-  container.innerHTML=siswa.map(s=>{
-    const k=kelas.find(x=>x.id===s.kelas);
-    if(mode==='qronly'){
-      return '<div style="border:1px solid #d1d5db;border-radius:8px;padding:12px;text-align:center;background:#fff">'+
-      '<div id="qr-'+s.id+'" style="display:inline-block;margin:8px 0"></div>'+
-      '<p style="font-size:11px;color:#6b7280;margin:4px 0 0">'+s.nama+'</p></div>';
-    }
-    return '<div style="border:1px solid #15803d;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#ffffff 55%,#ecfdf5);min-width:340px;max-width:440px;box-shadow:0 3px 10px #16653422">'+
-    '<div style="text-align:center;background:linear-gradient(100deg,#166534,#16a34a);padding:8px 12px;border-bottom:3px solid #fbbf24">'+
-      '<p style="font-size:14px;color:#fff;font-weight:800;letter-spacing:.6px;margin:0">KARTU PELAJAR</p>'+
-      '<p style="font-size:11px;color:#fef3c7;font-weight:600;margin:2px 0 0">'+(settings.namaSekolah||'Madrasah')+'</p></div>'+
-    '<div style="display:flex;gap:10px;align-items:center;padding:12px">'+
-      '<div style="flex:1;min-width:0;display:grid;grid-template-columns:92px 8px minmax(0,1fr);gap:3px 2px;align-items:start;font-size:10.5px;line-height:1.35;color:#1f2937">'+
-        '<b>Nama</b><span>:</span><span style="font-weight:600">'+(s.nama||'-')+'</span>'+
-        '<b>NIS</b><span>:</span><span>'+(s.nisn||'-')+'</span>'+
-        '<b>Kelas</b><span>:</span><span>'+(k?k.nama:'-')+'</span>'+
-        '<b>Nama Orang Tua</b><span>:</span><span>'+(s.namaOrtu||'-')+'</span>'+
-        '<b>No. HP Orang Tua</b><span>:</span><span>'+(s.noWaOrtu||'-')+'</span>'+
-      '</div><div id="qr-'+s.id+'" style="flex:0 0 82px;padding:4px;background:#fff;border:1px solid #bbf7d0;border-radius:7px;line-height:0"></div>'+
-    '</div><div style="height:5px;background:linear-gradient(90deg,#fbbf24,#16a34a,#166534)"></div></div>';
-  }).join('');
-  siswa.forEach(s=>{
-    const el=document.getElementById('qr-'+s.id);
-    if(el){const finalQrSize=mode==='full'?74:qrSize;el.innerHTML='';new QRCode(el,{text:s.id,width:finalQrSize,height:finalQrSize})}
-  });
+ const kf=document.getElementById('kartuKelas')?.value||'all',q=(document.getElementById('kartuSearch')?.value||'').toLowerCase(),size=document.getElementById('kartuSize')?.value||'medium',mode=document.getElementById('kartuMode')?.value||'full';
+ let ss=DB.get('siswa')||[];const ks=DB.get('kelas')||[],x=DB.get('settings')||{},box={small:[330,208,.78],medium:[480,302,1],large:[650,409,1.3]}[size],w=box[0],h=box[1],z=box[2];
+ if(kf!=='all')ss=ss.filter(s=>s.kelas===kf);if(q)ss=ss.filter(s=>(s.nama||'').toLowerCase().includes(q)||(s.nisn||'').toLowerCase().includes(q));const c=document.getElementById('qrCards');if(!c)return;
+ if(mode==='qronly'){c.innerHTML=ss.map(s=>'<div style="width:'+Math.round(135*z)+'px;text-align:center;background:#fff;padding:10px;border:1px solid #bbb;border-radius:8px"><div id="qr-'+s.id+'"></div><b style="font-size:'+Math.round(10*z)+'px">'+s.nama+'</b></div>').join('');ss.forEach(s=>new QRCode(document.getElementById('qr-'+s.id),{text:s.id,width:Math.round(105*z),height:Math.round(105*z)}));return}
+ c.innerHTML=ss.map(s=>{const k=ks.find(a=>a.id===s.kelas),bg=x.cardTemplate?'background-image:linear-gradient(#ffffff18,#ffffff18),url('+x.cardTemplate+');background-size:cover;background-position:center;':'background:linear-gradient(160deg,#fff 68%,#f9c900 68%);';return '<div style="position:relative;width:'+w+'px;height:'+h+'px;overflow:hidden;border-radius:'+Math.round(13*z)+'px;color:#073c57;font-family:Arial;'+bg+'box-shadow:0 2px 9px #0003">'+
+ '<div style="height:'+Math.round(78*z)+'px;background:#064766;color:#fff;display:flex;align-items:center;padding:0 '+Math.round(18*z)+'px;gap:'+Math.round(14*z)+'px">'+(x.logo?'<img src="'+x.logo+'" style="width:'+Math.round(52*z)+'px;height:'+Math.round(52*z)+'px;object-fit:contain">':'')+'<div style="text-align:center;flex:1"><b style="font-size:'+Math.round(13*z)+'px">'+(x.namaYayasan||'YAYASAN PENDIDIKAN ISLAM')+'</b><div style="font-size:'+Math.round(19*z)+'px;font-weight:800">'+(x.namaSekolah||'MADRASAH')+'</div><small>'+ (x.alamat||'')+'</small></div></div>'+
+ '<div style="position:absolute;left:'+Math.round(20*z)+'px;top:'+Math.round(96*z)+'px;width:'+Math.round(90*z)+'px;height:'+Math.round(120*z)+'px;border-radius:12px;overflow:hidden;background:#dbeafe">'+(s.photo?'<img src="'+s.photo+'" style="width:100%;height:100%;object-fit:cover">':'<div style="font-size:'+Math.round(45*z)+'px;text-align:center;padding-top:'+Math.round(28*z)+'px">👤</div>')+'</div>'+
+ '<div style="position:absolute;left:'+Math.round(125*z)+'px;top:'+Math.round(91*z)+'px;font-size:'+Math.round(11*z)+'px;line-height:1.5"><div style="font-size:'+Math.round(20*z)+'px;font-weight:900;margin-bottom:'+Math.round(8*z)+'px">KARTU PELAJAR SISWA</div><div style="display:grid;grid-template-columns:'+Math.round(105*z)+'px 8px '+Math.round(145*z)+'px"><b>Nama Lengkap</b><span>:</span><span>'+s.nama+'</span><b>NIS</b><span>:</span><span>'+(s.nisn||'-')+'</span><b>Kelas</b><span>:</span><span>'+(k?k.nama:'-')+'</span><b>Nama Orang Tua</b><span>:</span><span>'+(s.namaOrtu||'-')+'</span><b>No. HP Orang Tua</b><span>:</span><span>'+(s.noWaOrtu||'-')+'</span></div></div><div id="qr-'+s.id+'" style="position:absolute;right:'+Math.round(18*z)+'px;bottom:'+Math.round(18*z)+'px;background:#fff;padding:4px"></div></div>'}).join('');
+ ss.forEach(s=>new QRCode(document.getElementById('qr-'+s.id),{text:s.id,width:Math.round(65*z),height:Math.round(65*z)}));
 }
-
 // ===== REKAP PRESENSI =====
 function renderRekap(){
   const kelas=DB.get('kelas')||[];
@@ -1788,7 +1781,7 @@ function renderPengaturan(){
   '<h3 style="margin:0 0 16px;font-size:15px;color:#15803d">Profil Madrasah</h3>'+
   (settings.profilTerkunci?'<div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#92400e">\u{1F512} Profil madrasah terkunci sesuai data saat aktivasi.</div>':'')+
   '<label style="font-size:13px;color:#374151">Nama Madrasah</label>'+
-  '<input id="setNama" value="'+(settings.namaSekolah||'')+'" style="margin-bottom:10px" '+(settings.profilTerkunci?'disabled':'')+'>'+ 
+  '<input id="setNama" value="'+(settings.namaSekolah||'')+'" style="margin-bottom:10px" '+(settings.profilTerkunci?'disabled':'')+'>'+
   '<label style="font-size:13px;color:#374151">Alamat</label>'+
   '<input id="setAlamat" value="'+(settings.alamat||'')+'" style="margin-bottom:16px" '+(settings.profilTerkunci?'disabled':'')+'>'+
   '<button class="btn btn-primary" onclick="saveSettings()" '+(settings.profilTerkunci?'disabled':'')+'>\u{1F4BE} Simpan Profil</button>'+
