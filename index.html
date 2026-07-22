@@ -313,7 +313,7 @@ async function _mhdCloudStart(){
     else if(_mhdLocalHasData()) await window.MHDCloud.pushAll(id,_mhdLocalPayload());
     else if(cloud.settings) _mhdApplyCloud(cloud);
     _mhdSetSyncStatus('☁ Tersinkron','ok');
-    if(!_mhdRealtimeSocket) _mhdRealtimeSocket=window.MHDCloud.subscribe(id,function(){clearTimeout(_mhdRealtimeTimer);_mhdRealtimeTimer=setTimeout(async function(){if(_mhdSyncBusy)return;try{_mhdApplyCloud(await window.MHDCloud.pullAll(id));_mhdSetSyncStatus('☁ Diperbarui','ok');if(loggedIn)render();}catch(e){_mhdSetSyncStatus('☁ Gagal sync','error');}},900);});
+    if(!_mhdRealtimeSocket) _mhdRealtimeSocket=window.MHDCloud.subscribe(id,function(){clearTimeout(_mhdRealtimeTimer);_mhdRealtimeTimer=setTimeout(async function(){if(_mhdSyncBusy||_DBraw.get('mhd_cloud_pending')||Object.keys(_mhdSyncDirty).length)return;try{_mhdApplyCloud(await window.MHDCloud.pullAll(id));_mhdSetSyncStatus('☁ Diperbarui','ok');if(loggedIn)render();}catch(e){_mhdSetSyncStatus('☁ Gagal sync','error');}},900);});
     if(loggedIn){const st=_DBraw.get('settings')||{};document.getElementById('appTitle').textContent=st.namaSekolah||'Madrasah Hadir Digital';render();}
   }catch(e){console.warn('[MHDCloud] initial sync gagal:',e);_mhdSetSyncStatus(navigator.onLine?'☁ Sync gagal':'☁ Offline','error');}
   finally{_mhdSyncBusy=false;}
@@ -327,7 +327,8 @@ function _mhdCloudQueue(key){
   _mhdSyncDirty[key]=true;
   _DBraw.set('mhd_cloud_pending',true);
   if(_mhdSyncTimer)clearTimeout(_mhdSyncTimer);
-  _mhdSyncTimer=setTimeout(_mhdCloudFlush, 1500);
+  // Cepat kirim perubahan/hapus agar event realtime cloud lama tidak menghidupkan data kembali.
+  _mhdSyncTimer=setTimeout(_mhdCloudFlush, 250);
 }
 async function _mhdCloudFlush(){
   _mhdSyncTimer=null;
