@@ -47,6 +47,7 @@ create table if not exists public.siswa (
   alamat text,
   nama_ortu text,
   no_wa_ortu text,
+  photo text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

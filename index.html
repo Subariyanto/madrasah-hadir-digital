@@ -278,7 +278,9 @@ function _mhdSetSyncStatus(text,state){
 }
 function _mhdLocalPayload(){
   const siswa=_DBraw.get('siswa')||[], settings=Object.assign({},_DBraw.get('settings')||{});
-  settings.studentPhotos={}; siswa.forEach(s=>{if(s.photo){settings.studentPhotos[s.id]=s.photo;if(s.nisn)settings.studentPhotos['nisn:'+String(s.nisn).trim()]=s.photo;}});
+  // Key foto pakai NISN (primary) + nama (fallback) supaya konsisten lintas device
+  // Jangan pakai local ID (s12345) karena berubah jadi UUID di cloud
+  settings.studentPhotos={}; siswa.forEach(s=>{if(s.photo){var nisn=String(s.nisn||'').trim();var nama=String(s.nama||'').trim().toLowerCase();if(nisn)settings.studentPhotos['nisn:'+nisn]=s.photo;if(nama)settings.studentPhotos['name:'+nama]=s.photo;settings.studentPhotos[s.id]=s.photo;}});
   return {kelas:_DBraw.get('kelas')||[],siswa,guru:_DBraw.get('teachers')||[],presensi:_DBraw.get('presensi')||[],presensiGuru:_DBraw.get('teacherAttendance')||[],settings};
 }
 function _mhdCloudHasData(d){return ['kelas','siswa','guru','presensi','presensiGuru'].some(k=>d[k]&&d[k].length);}
@@ -289,7 +291,7 @@ function _mhdApplyCloud(d){
     const mergeUnique=(local,remote,keyFn)=>{const out=(local||[]).slice();(remote||[]).forEach(x=>{const key=keyFn(x),i=out.findIndex(y=>String(y.id)===String(x.id)||(key&&keyFn(y)===key));if(i<0)out.push(x);else out[i]=Object.assign({},out[i],x)});const seen=new Set();return out.filter(x=>{const k=keyFn(x)||('id:'+x.id);if(seen.has(k))return false;seen.add(k);return true})};
     if(d.kelas&&d.kelas.length)_DBraw.set('kelas',mergeUnique(_DBraw.get('kelas'),d.kelas.map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})),x=>'nama:'+String(x.nama||'').trim().toLowerCase()));
     const cloudExtras=d.settings&&d.settings.extras||{}, photos=cloudExtras.studentPhotos||{};
-    if(d.siswa&&d.siswa.length)_DBraw.set('siswa',mergeUnique(_DBraw.get('siswa'),d.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||s.nis||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||'',photo:photos[s.id]||photos['nisn:'+String(s.nisn||s.nis||'').trim()]||undefined})),x=>x.nisn?'nisn:'+String(x.nisn).trim():'nama:'+String(x.nama||'').trim().toLowerCase()));
+    if(d.siswa&&d.siswa.length)_DBraw.set('siswa',mergeUnique(_DBraw.get('siswa'),d.siswa.map(s=>{var nisn=String(s.nisn||s.nis||'').trim();var nama=String(s.nama||'').trim().toLowerCase();var photo=s.photo||photos['nisn:'+nisn]||photos['name:'+nama]||photos[s.id]||undefined;return{id:s.id,nama:s.nama,nisn:nisn,kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||'',photo:photo};}),x=>x.nisn?'nisn:'+String(x.nisn).trim():'nama:'+String(x.nama||'').trim().toLowerCase()));
     if(d.guru&&d.guru.length)_DBraw.set('teachers',mergeUnique(_DBraw.get('teachers'),d.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})),x=>x.nip?'nip:'+String(x.nip).trim():'nama:'+String(x.nama||'').trim().toLowerCase()));
     if(d.presensi&&d.presensi.length)_DBraw.set('presensi',mergeUnique(_DBraw.get('presensi'),d.presensi.map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu||'',keterangan:p.keterangan||''})),x=>'id:'+x.id));
     if(d.presensiGuru&&d.presensiGuru.length)_DBraw.set('teacherAttendance',mergeUnique(_DBraw.get('teacherAttendance'),d.presensiGuru.map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})),x=>'id:'+x.id));
