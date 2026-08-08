@@ -148,7 +148,8 @@
           id:cloudUuid(s.id), madrasah_id:madrasahId, kelas_id:s.kelas?cloudUuid(s.kelas):null,
           nama:s.nama, nisn:s.nisn||null, jk:s.jk||null,
           tgl_lahir:s.tglLahir||null, alamat:s.alamat||null,
-          nama_ortu:s.namaOrtu||null, no_wa_ortu:s.noWaOrtu||null
+          nama_ortu:s.namaOrtu||null, no_wa_ortu:s.noWaOrtu||null,
+          photo:s.photo||null
         }, 'id'));
       }
     }
