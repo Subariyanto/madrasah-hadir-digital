@@ -1013,14 +1013,18 @@ function onScanSuccess(decoded){
     const settings=DB.get('settings')||{};
     if(settings.waMode!=='off'){
       const tpl=settings.waTemplate||"Assalamu'alaikum Bapak/Ibu Wali dari [Nama Siswa]. Kami informasikan bahwa ananda [Nama Siswa] kelas [Kelas] telah melakukan presensi [Status] pada tanggal [Tanggal] pukul [Jam]. Terima kasih.";
-      const msg=tpl.replace(/\[Nama Siswa\]/g,siswa.nama).replace(/\[Kelas\]/g,kls?kls.nama:'-').replace(/\[Status\]/g,'Masuk').replace(/\[Tanggal\]/g,today).replace(/\[Jam\]/g,waktu);
+      const statusWa=mode==='pulang'?'Pulang':'Masuk';
+      const msg=tpl.replace(/\[Nama Siswa\]/g,siswa.nama).replace(/\[Kelas\]/g,kls?kls.nama:'-').replace(/\[Status\]/g,statusWa).replace(/\[Tanggal\]/g,today).replace(/\[Jam\]/g,waktuStr);
       const waNum=siswa.noWaOrtu.replace(/^0/,'62').replace(/[^0-9]/g,'');
-      waHtml=' <a href="https://wa.me/'+waNum+'?text='+encodeURIComponent(msg)+'" target="_blank" style="background:#25d366;color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;text-decoration:none">\u{1F4F1} WA Ortu</a>';
+      const waUrl='https://wa.me/'+waNum+'?text='+encodeURIComponent(msg);
+      waHtml=' <a href="'+waUrl+'" target="_blank" rel="noopener" style="background:#25d366;color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;text-decoration:none">\u{1F4F1} WA Ortu</a>';
+      // Buka WhatsApp otomatis setelah scan; tombol tetap tersedia jika popup diblokir.
+      setTimeout(()=>{try{window.open(waUrl,'_blank','noopener,noreferrer')}catch(e){}},150);
     }
   } else if(siswa.noWaOrtu===undefined||siswa.noWaOrtu===''){
     waHtml=' <span style="font-size:11px;color:#d97706">\u26A0\uFE0F No WA ortu belum diisi</span>';
   }
-  res.innerHTML='<p style="color:#16a34a">\u2705 '+siswa.nama+' - Hadir ('+waktu+')'+waHtml+'</p>';
+  res.innerHTML='<p style="color:#16a34a">\u2705 '+siswa.nama+' - '+(mode==='pulang'?'Pulang':'Masuk')+' ('+waktuStr+')'+waHtml+'</p>';
   updateScanLog();
 }
 function updateScanLog(){
