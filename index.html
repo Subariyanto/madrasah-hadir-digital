@@ -283,6 +283,13 @@ function _mhdLocalPayload(){
   settings.studentPhotos={}; siswa.forEach(s=>{if(s.photo){var nisn=String(s.nisn||'').trim();var nama=String(s.nama||'').trim().toLowerCase();if(nisn)settings.studentPhotos['nisn:'+nisn]=s.photo;if(nama)settings.studentPhotos['name:'+nama]=s.photo;settings.studentPhotos[s.id]=s.photo;}});
   return {kelas:_DBraw.get('kelas')||[],siswa,guru:_DBraw.get('teachers')||[],presensi:_DBraw.get('presensi')||[],presensiGuru:_DBraw.get('teacherAttendance')||[],settings};
 }
+function _mhdCloudPhoto(s,settings){
+  if(s&&s.photo)return s.photo;
+  const photos=(settings&&settings.extras&&settings.extras.studentPhotos)||{};
+  const nisn=String(s&&(s.nisn||s.nis)||'').trim();
+  const nama=String(s&&s.nama||'').trim().toLowerCase();
+  return photos['nisn:'+nisn]||photos['name:'+nama]||photos[s&&s.id]||'';
+}
 function _mhdCloudHasData(d){return ['kelas','siswa','guru','presensi','presensiGuru'].some(k=>d[k]&&d[k].length);}
 function _mhdLocalHasData(){const d=_mhdLocalPayload();return ['kelas','siswa','guru','presensi','presensiGuru'].some(k=>d[k].length);}
 function _mhdApplyCloud(d){
@@ -467,7 +474,7 @@ async function doAktivasi(){
     try{
       const data = await window.MHDCloud.pullAll(_DBraw.get('cloud_madrasah_id'));
       if(data.kelas && data.kelas.length) _DBraw.set('kelas', data.kelas.map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})));
-      if(data.siswa && data.siswa.length) _DBraw.set('siswa', data.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||''})));
+      if(data.siswa && data.siswa.length) _DBraw.set('siswa', data.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||'',photo:_mhdCloudPhoto(s,data.settings)})));
       if(data.guru && data.guru.length) _DBraw.set('teachers', data.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})));
       if(data.presensi && data.presensi.length) _DBraw.set('presensi', data.presensi.map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||p.waktu||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
       if(data.presensiGuru && data.presensiGuru.length) _DBraw.set('teacherAttendance', data.presensiGuru.map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
@@ -1913,7 +1920,7 @@ async function cloudPullAll(){
     if(!m){toast('Madrasah tidak ditemukan di cloud','error');return;}
     const data = await window.MHDCloud.pullAll(m.id);
     if(data.kelas) _DBraw.set('kelas', data.kelas.map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})));
-    if(data.siswa) _DBraw.set('siswa', data.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||''})));
+    if(data.siswa) _DBraw.set('siswa', data.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||'',photo:_mhdCloudPhoto(s,data.settings)})));
     if(data.guru) _DBraw.set('teachers', data.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})));
     if(data.presensi) _DBraw.set('presensi', data.presensi.map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||p.waktu||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
     if(data.presensiGuru) _DBraw.set('teacherAttendance', data.presensiGuru.map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
