@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<script>
+  // Kamera browser hanya bekerja pada secure context. Alihkan domain HTTP ke HTTPS.
+  if(location.protocol==='http:' && location.hostname==='presensi.pokjawasjember.com') location.replace('https://'+location.host+location.pathname+location.search+location.hash);
+</script>
 <title>Madrasah Hadir Digital</title>
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
