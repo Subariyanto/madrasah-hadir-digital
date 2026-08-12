@@ -181,6 +181,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <a href="#" onclick="nav('rekapGuru')" id="nav-rekapGuru">📋 Rekap Guru</a>
 <a href="#" onclick="nav('kartuGuru')" id="nav-kartuGuru">🪪 QR Guru</a>
 <a href="#" onclick="nav('panduan')" id="nav-panduan">📖 Panduan</a>
+<a href="#" onclick="nav('backup')" id="nav-backup">💾 Backup & Restore</a>
 <a href="#" onclick="nav('pengaturan')" id="nav-pengaturan">⚙️ Pengaturan</a>
 <button onclick="logout()" style="margin-top:20px;color:#fecaca">🚪 Logout</button>
 <div style="margin-top:24px;padding:12px 14px 14px;border-top:1px solid rgba(255,255,255,0.18);font-size:11px;line-height:1.45;color:rgba(255,255,255,0.78);text-align:center">
@@ -662,7 +663,7 @@ function nav(page){
   currentPage=page;
   document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
   const el=document.getElementById('nav-'+page);if(el)el.classList.add('active');
-  const titles={home:'Beranda',dashboard:'Dashboard',presensi:'Presensi Manual',scan:'Scan QR',siswa:'Data Siswa',kelas:'Data Kelas',madrasah:'Data Madrasah',kartu:'Cetak Kartu QR',rekap:'Rekap Presensi',guru:'Data Guru',presensiGuru:'Presensi Guru',rekapGuru:'Rekap Presensi Guru',kartuGuru:'Cetak QR Guru',panduan:'Panduan Penggunaan',pengaturan:'Pengaturan'};
+  const titles={home:'Beranda',dashboard:'Dashboard',presensi:'Presensi Manual',scan:'Scan QR',siswa:'Data Siswa',kelas:'Data Kelas',madrasah:'Data Madrasah',kartu:'Cetak Kartu QR',rekap:'Rekap Presensi',guru:'Data Guru',presensiGuru:'Presensi Guru',rekapGuru:'Rekap Presensi Guru',kartuGuru:'Cetak QR Guru',panduan:'Panduan Penggunaan',backup:'Backup & Restore',pengaturan:'Pengaturan'};
   document.getElementById('pageTitle').textContent=titles[page]||page;
   render();closeSidebarMobile();
 }
@@ -718,6 +719,7 @@ function render(){
     case'rekapGuru':c.innerHTML=renderRekapGuru();break;
     case'kartuGuru':c.innerHTML=renderKartuGuru();setTimeout(generateQRGuru,100);break;
     case'panduan':c.innerHTML=renderPanduan();break;
+    case'backup':c.innerHTML=renderBackup();break;
     case'pengaturan':c.innerHTML=renderPengaturan();break;
   }
 }
@@ -1775,6 +1777,53 @@ function renderPanduan(){
 
 </div>
 </div>`;
+}
+
+// ===== BACKUP & RESTORE =====
+function _mhdBackupPayload(){
+  const keys=['lisensi','kelas','siswa','teachers','presensi','teacherAttendance','settings'];
+  const data={}; keys.forEach(k=>{data[k]=_DBraw.get(k)});
+  return {app:'Madrasah Hadir Digital',version:1,createdAt:new Date().toISOString(),data};
+}
+function backupData(){
+  try{
+    const payload=_mhdBackupPayload();
+    const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='backup-madrasah-hadir-'+new Date().toISOString().slice(0,10)+'.json';
+    a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    toast('Backup berhasil diunduh. Foto siswa ikut tersimpan.');
+  }catch(e){console.error(e);toast('Backup gagal: '+e.message,'error');}
+}
+function restoreBackupFile(ev){
+  const file=ev.target.files&&ev.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(){
+    try{
+      const payload=JSON.parse(reader.result), d=payload&&payload.data;
+      if(!d||payload.app!=='Madrasah Hadir Digital')throw new Error('Format file backup tidak dikenali');
+      if(!confirm('Restore akan mengganti data lokal saat ini. Lanjutkan?'))return;
+      ['lisensi','kelas','siswa','teachers','presensi','teacherAttendance','settings'].forEach(k=>{if(Object.prototype.hasOwnProperty.call(d,k)&&d[k]!==null)_DBraw.set(k,d[k]);});
+      toast('Restore berhasil. Aplikasi akan dimuat ulang.');
+      setTimeout(()=>location.reload(),700);
+    }catch(e){console.error(e);toast('Restore gagal: '+e.message,'error');}
+    finally{ev.target.value='';}
+  };
+  reader.onerror=()=>toast('File backup tidak dapat dibaca','error');
+  reader.readAsText(file);
+}
+function renderBackup(){
+  const siswa=DB.get('siswa')||[], photos=siswa.filter(s=>s.photo).length;
+  return '<div class="card">'+
+    '<h3 style="margin:0 0 10px;color:#15803d">💾 Backup & Restore Data</h3>'+
+    '<p style="font-size:13px;color:#374151;line-height:1.6">Backup menyimpan data siswa, foto siswa, kelas, guru, presensi, pengaturan, dan lisensi dalam satu file JSON. Simpan file ini di tempat yang aman.</p>'+
+    '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:10px 12px;margin:12px 0;font-size:12px;color:#1e40af">📦 '+siswa.length+' siswa · 📷 '+photos+' foto tersimpan lokal. Konfigurasi Cloud dan password tidak ikut diekspor.</div>'+
+    '<button class="btn btn-primary" onclick="backupData()">⬇️ Download Backup JSON</button> '+
+    '<button class="btn btn-secondary" onclick="document.getElementById(\'restoreBackupFile\').click()">⬆️ Restore dari File</button>'+
+    '<input id="restoreBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreBackupFile(event)">'+
+    '<hr style="margin:20px 0;border-color:#e5e7eb">'+
+    '<p style="font-size:12px;color:#6b7280;margin:0">Disarankan membuat backup setelah upload banyak foto, sebelum reset data, dan secara berkala meskipun Cloud Sync aktif.</p>'+
+    '</div>';
 }
 
 // ===== PENGATURAN =====
