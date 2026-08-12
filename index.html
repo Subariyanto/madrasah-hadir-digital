@@ -952,8 +952,20 @@ function initScanner(){
   const el=document.getElementById('qr-reader');
   if(!el)return;
   if(qrScanner){try{qrScanner.clear()}catch(e){}qrScanner=null}
-  qrScanner=new Html5QrcodeScanner("qr-reader",{fps:10,qrbox:250});
-  qrScanner.render(onScanSuccess,()=>{});
+  if(typeof Html5QrcodeScanner==='undefined'){
+    el.innerHTML='<p style="color:#dc2626;text-align:center">❌ Modul kamera belum termuat. Periksa koneksi internet lalu muat ulang halaman.</p>';return;
+  }
+  if(!window.isSecureContext){
+    el.innerHTML='<p style="color:#dc2626;text-align:center">❌ Kamera hanya dapat digunakan melalui HTTPS. Buka alamat aplikasi yang diawali https://</p>';return;
+  }
+  qrScanner=new Html5QrcodeScanner("qr-reader",{fps:10,qrbox:{width:250,height:250},rememberLastUsedCamera:true,showTorchButtonIfSupported:true},false);
+  qrScanner.render(onScanSuccess,(errorMessage)=>{
+    const msg=String(errorMessage||'');
+    if(/permission|notallowed|denied|secure|camera|device/i.test(msg)){
+      const hint=document.getElementById('scanResult');
+      if(hint)hint.innerHTML='<p style="color:#b45309;font-size:13px">⚠️ Kamera belum bisa digunakan. Izinkan kamera pada pengaturan browser, pastikan aplikasi dibuka dengan HTTPS, lalu muat ulang halaman.</p>';
+    }
+  });
   updateScanLog();
 }
 function onScanSuccess(decoded){
