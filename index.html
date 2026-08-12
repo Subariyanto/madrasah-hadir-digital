@@ -933,6 +933,18 @@ function showWaNotifOption(kelasId, tanggal){
 
 // ===== SCAN QR =====
 let qrScanner=null;
+let scanBusy=false;
+let scanRestartTimer=null;
+document.addEventListener('visibilitychange',function(){
+  // Saat WhatsApp dibuka lalu pengguna kembali ke browser, kamera sering
+  // dihentikan sementara oleh HP. Mulai ulang scanner otomatis.
+  if(document.visibilityState==='visible' && currentPage==='scan'){
+    clearTimeout(scanRestartTimer);
+    scanRestartTimer=setTimeout(function(){
+      if(document.getElementById('qr-reader')) initScanner();
+    },350);
+  }
+});
 function renderScan(){
   const mode=localStorage.getItem('mhd_scan_mode')||'masuk';
   return '<div class="card">'+
@@ -956,6 +968,7 @@ function initScanner(){
   const el=document.getElementById('qr-reader');
   if(!el)return;
   if(qrScanner){try{qrScanner.clear()}catch(e){}qrScanner=null}
+  scanBusy=false;
   if(typeof Html5QrcodeScanner==='undefined'){
     el.innerHTML='<p style="color:#dc2626;text-align:center">❌ Modul kamera belum termuat. Periksa koneksi internet lalu muat ulang halaman.</p>';return;
   }
@@ -973,9 +986,11 @@ function initScanner(){
   updateScanLog();
 }
 function onScanSuccess(decoded){
+  if(scanBusy)return;
+  scanBusy=true;
   const siswa=(DB.get('siswa')||[]).find(s=>s.id===decoded||s.nisn===decoded);
   const res=document.getElementById('scanResult');
-  if(!siswa){res.innerHTML='<p style="color:#dc2626">\u274C Siswa tidak ditemukan: '+decoded+'</p>';return}
+  if(!siswa){res.innerHTML='<p style="color:#dc2626">\u274C Siswa tidak ditemukan: '+decoded+'</p>';setTimeout(()=>scanBusy=false,1200);return}
   const mode=localStorage.getItem('mhd_scan_mode')||'masuk';
   const today=new Date().toISOString().slice(0,10);
   const now=new Date();
@@ -997,6 +1012,7 @@ function onScanSuccess(decoded){
     // Mode masuk
     if(idx>=0 && presensi[idx].waktuMasuk){
       res.innerHTML='<p style="color:#d97706">\u26A0\uFE0F '+siswa.nama+' sudah absen masuk ('+presensi[idx].waktuMasuk+')</p>';
+      setTimeout(()=>scanBusy=false,1500);
       return;
     }
     if(idx>=0){
@@ -1026,6 +1042,10 @@ function onScanSuccess(decoded){
   }
   res.innerHTML='<p style="color:#16a34a">\u2705 '+siswa.nama+' - '+(mode==='pulang'?'Pulang':'Masuk')+' ('+waktuStr+')'+waHtml+'</p>';
   updateScanLog();
+  // Jaga agar kartu yang sama tidak terbaca berkali-kali sebelum kamera
+  // berpindah ke kartu berikutnya. Saat kembali dari WhatsApp, visibilitychange
+  // akan memanggil initScanner() dan membuka lock ini kembali.
+  setTimeout(()=>scanBusy=false,2500);
 }
 function updateScanLog(){
   const today=new Date().toISOString().slice(0,10);
