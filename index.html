@@ -1789,8 +1789,11 @@ function backupData(){
   try{
     const payload=_mhdBackupPayload();
     const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+    const settings=_DBraw.get('settings')||{}, lisensi=_DBraw.get('lisensi')||{};
+    const namaMadrasah=String(settings.namaSekolah||lisensi.madrasah||'madrasah-hadir')
+      .trim().replace(/[<>:"/\\|?*\x00-\x1F]/g,'-').replace(/\s+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'')||'madrasah-hadir';
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download='backup-madrasah-hadir-'+new Date().toISOString().slice(0,10)+'.json';
+    a.download='backup-'+namaMadrasah+'-'+new Date().toISOString().slice(0,10)+'.json';
     a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
     toast('Backup berhasil diunduh. Foto siswa ikut tersimpan.');
   }catch(e){console.error(e);toast('Backup gagal: '+e.message,'error');}
