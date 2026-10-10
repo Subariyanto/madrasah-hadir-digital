@@ -23,34 +23,25 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<!-- Supabase Cloud config (optional) -->
+<!-- MHD Cloud Sync config (Cloudflare Worker + KV) -->
 <script>
-  // Konfigurasi Supabase: default credentials di-bundle. User bisa override via URL param atau localStorage.
+  // Konfigurasi Cloud Sync: default endpoint di-bundle. User bisa override via localStorage atau ?cloud=off.
   (function(){
-    // Default credentials (production)
-    var DEFAULT_URL = 'https://gdnkvwiwrluovtpgypni.supabase.co';
-    var DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdkbmt2d2l3cmx1b3Z0cGd5cG5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwMDIyNDcsImV4cCI6MjA5NzU3ODI0N30.ri8n7tzeLCo8PbP2TjBWSswm5uj5K6zkHtltFUZb-Mw';
+    // Default endpoint (production) — Cloudflare Worker + KV
+    var DEFAULT_URL = 'https://mhd-sync.subariyantoss2.workers.dev';
+    var DEFAULT_KEY = 'MHDKV-ba74e1455683940808630668';
     var qp = new URLSearchParams(location.search);
-    if(qp.get('supabase')){
-      try{
-        var cfg = JSON.parse(atob(qp.get('supabase')));
-        if(cfg.url) window.MHD_SUPABASE_URL = cfg.url;
-        if(cfg.key) window.MHD_SUPABASE_ANON_KEY = cfg.key;
-        localStorage.setItem('mhd_supabase_cfg', JSON.stringify(cfg));
-      }catch(e){}
-    } else if(qp.get('cloud')==='off'){
-      // Disable cloud explicitly
+    if(qp.get('cloud')==='off'){
       localStorage.setItem('mhd_cloud_disabled','1');
     } else {
       try{
-        var saved = JSON.parse(localStorage.getItem('mhd_supabase_cfg')||'null');
+        var saved = JSON.parse(localStorage.getItem('mhd_cloud_cfg')||'null');
         if(saved && saved.url && saved.key){
-          window.MHD_SUPABASE_URL = saved.url;
-          window.MHD_SUPABASE_ANON_KEY = saved.key;
+          window.MHD_SYNC_URL = saved.url;
+          window.MHD_SYNC_KEY = saved.key;
         } else if(localStorage.getItem('mhd_cloud_disabled')!=='1'){
-          // Pakai default bundled credentials
-          window.MHD_SUPABASE_URL = DEFAULT_URL;
-          window.MHD_SUPABASE_ANON_KEY = DEFAULT_KEY;
+          window.MHD_SYNC_URL = DEFAULT_URL;
+          window.MHD_SYNC_KEY = DEFAULT_KEY;
         }
       }catch(e){}
     }
@@ -1953,14 +1944,14 @@ function renderPengaturan(){
   '</div>';
 }
 function showCloudConfig(){
-  const cur=JSON.parse(localStorage.getItem('mhd_supabase_cfg')||'null')||{};
+  const cur=JSON.parse(localStorage.getItem('mhd_cloud_cfg')||'null')||{};
   const html='<div class="overlay" onclick="if(event.target===this)this.remove()"><div class="modal">'+
-    '<h3 style="margin:0 0 12px;color:#15803d">\u2601\uFE0F Konfigurasi Cloud (Supabase)</h3>'+
-    '<p style="font-size:12px;color:#6b7280;margin-bottom:12px">Masukkan URL & Anon Key Supabase. Halaman akan reload setelah simpan.</p>'+
-    '<label style="font-size:13px;color:#374151">Supabase URL</label>'+
-    '<input id="sbUrl" placeholder="https://xxx.supabase.co" value="'+(cur.url||'')+'" style="margin-bottom:10px">'+
-    '<label style="font-size:13px;color:#374151">Anon Key</label>'+
-    '<input id="sbKey" placeholder="eyJ..." value="'+(cur.key||'')+'" style="margin-bottom:16px">'+
+    '<h3 style="margin:0 0 12px;color:#15803d">\u2601\uFE0F Konfigurasi Cloud Sync</h3>'+
+    '<p style="font-size:12px;color:#6b7280;margin-bottom:12px">Masukkan URL Sync & App Key. Halaman akan reload setelah simpan. Kosongkan untuk pakai default.</p>'+
+    '<label style="font-size:13px;color:#374151">Sync URL</label>'+
+    '<input id="sbUrl" placeholder="https://mhd-sync.subariyantoss2.workers.dev" value="'+(cur.url||'')+'" style="margin-bottom:10px">'+
+    '<label style="font-size:13px;color:#374151">App Key</label>'+
+    '<input id="sbKey" placeholder="MHDKV-..." value="'+(cur.key||'')+'" style="margin-bottom:16px">'+
     '<div style="display:flex;gap:8px;justify-content:flex-end">'+
       '<button class="btn btn-secondary" onclick="this.closest(\'.overlay\').remove()">Batal</button>'+
       '<button class="btn btn-primary" onclick="saveCloudConfig()">Simpan & Reload</button>'+
@@ -1971,13 +1962,15 @@ function saveCloudConfig(){
   const url=document.getElementById('sbUrl').value.trim();
   const key=document.getElementById('sbKey').value.trim();
   if(!url || !key){toast('URL & Key wajib diisi','error');return;}
-  localStorage.setItem('mhd_supabase_cfg', JSON.stringify({url,key}));
+  localStorage.setItem('mhd_cloud_cfg', JSON.stringify({url,key}));
+  localStorage.removeItem('mhd_cloud_disabled');
   toast('Cloud config tersimpan. Reload...');
   setTimeout(()=>location.reload(), 800);
 }
 function cloudDisable(){
   if(!confirm('Nonaktifkan Cloud Sync? Data lokal tetap ada, tapi tidak akan sync antar device.'))return;
-  localStorage.removeItem('mhd_supabase_cfg');
+  localStorage.removeItem('mhd_cloud_cfg');
+  localStorage.setItem('mhd_cloud_disabled','1');
   toast('Cloud dinonaktifkan. Reload...');
   setTimeout(()=>location.reload(), 800);
 }

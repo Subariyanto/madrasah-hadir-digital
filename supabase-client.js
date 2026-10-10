@@ -1,11 +1,18 @@
-/* Madrasah Hadir Digital - Supabase Client
- * Mode dual: kalau credentials nggak ada, fallback ke localStorage (mode lokal)
- * Kalau ada, sync ke Supabase + cache di localStorage (mode online)
+/* Madrasah Hadir Digital - Cloud Sync Client (Cloudflare Worker + KV)
+ * Menggantikan Supabase (project lama sudah dihapus / NXDOMAIN).
  *
- * Cara aktivasi mode online:
+ * Mode dual:
+ *  - Kalau URL + App Key tersedia -> cloud aktif, data di-mirror ke Worker KV.
+ *  - Kalau tidak -> mode lokal penuh (localStorage saja).
+ *
+ * Pola: OFFLINE-FIRST. localStorage tetap sumber utama; cloud hanya cermin.
+ * Foto siswa tidak diunggah sebagai file — disimpan sebagai dataURL di
+ * settings.extras.studentPhotos (dipakai bersama lintas device).
+ *
+ * Cara aktifkan:
  *   <script>
- *     window.MHD_SUPABASE_URL = 'https://xxx.supabase.co';
- *     window.MHD_SUPABASE_ANON_KEY = 'eyJ...';
+ *     window.MHD_SYNC_URL = 'https://mhd-sync.subariyantoss2.workers.dev';
+ *     window.MHD_SYNC_KEY = 'MHDKV-...';
  *   </script>
  *   <script src="supabase-client.js"></script>
  */
@@ -13,25 +20,19 @@
 (function(){
   'use strict';
 
-  const SB_URL = window.MHD_SUPABASE_URL || '';
-  const SB_KEY = window.MHD_SUPABASE_ANON_KEY || '';
-  const ENABLED = !!(SB_URL && SB_KEY);
+  const SYNC_URL = (window.MHD_SYNC_URL || '').replace(/\/+$/, '');
+  const SYNC_KEY = window.MHD_SYNC_KEY || '';
+  const ENABLED = !!(SYNC_URL && SYNC_KEY);
+  const COLLECTIONS = ['kelas', 'siswa', 'guru', 'presensi', 'presensiGuru', 'settings'];
 
-  // Public API namespace
+  // Public API namespace (nama dipertahankan agar index.html tidak perlu diubah)
   const MHD = window.MHDCloud = window.MHDCloud || {};
   MHD.enabled = ENABLED;
-  MHD.url = SB_URL;
-  MHD.headers = function(){
-    return {
-      'apikey': SB_KEY,
-      'Authorization': 'Bearer ' + SB_KEY,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation'
-    };
-  };
+  MHD.url = SYNC_URL;
+  MHD.mode = 'cloudflare-worker';
 
   if(!ENABLED){
-    console.info('[MHDCloud] Disabled (no credentials). Running in local mode.');
+    console.info('[MHDCloud] Disabled (no sync credentials). Running in local mode.');
     MHD.enabled = false;
     return;
   }
@@ -39,201 +40,209 @@
   // ===== REST helper =====
   async function rest(path, options){
     options = options || {};
-    const url = SB_URL + '/rest/v1' + path;
-    const res = await fetch(url, {
+    const res = await fetch(SYNC_URL + path, {
       method: options.method || 'GET',
-      headers: Object.assign(MHD.headers(), options.headers || {}),
-      body: options.body ? JSON.stringify(options.body) : undefined
+      headers: Object.assign({
+        'x-mhd-key': SYNC_KEY,
+        'Content-Type': 'application/json'
+      }, options.headers || {}),
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      cache: 'no-store'
     });
-    if(!res.ok){
-      const text = await res.text();
-      throw new Error('Supabase '+res.status+': '+text);
+    let payload = null;
+    try{ payload = await res.json(); }catch(e){}
+    if(!res.ok || (payload && payload.ok === false)){
+      const msg = (payload && payload.error) || ('HTTP ' + res.status);
+      throw new Error('SyncCloud: ' + msg);
     }
-    const ct = res.headers.get('content-type')||'';
-    if(ct.indexOf('application/json')>=0) return res.json();
-    return null;
+    return payload;
   }
   MHD.rest = rest;
 
-  // ===== Madrasah lookup by kode aktivasi =====
-  MHD.findMadrasahByKode = async function(kode){
-    const k = (kode||'').trim().toUpperCase();
-    if(!k) return null;
-    const list = await rest('/madrasah?kode_aktivasi=eq.'+encodeURIComponent(k)+'&select=*&limit=1');
-    return (list && list[0]) || null;
-  };
-
-  // ===== Aktivasi: cari madrasah by kode, kalau belum ada di server bikin =====
-  MHD.aktivasi = async function(kode, fallbackNama, fallbackAlamat){
-    const found = await MHD.findMadrasahByKode(kode);
-    if(found) return found;
-    // Insert (kalau RLS allow)
-    const inserted = await rest('/madrasah', {
-      method:'POST',
-      body:{
-        kode_aktivasi:(kode||'').trim().toUpperCase(),
-        nama: fallbackNama || 'Madrasah',
-        alamat: fallbackAlamat || '',
-        tier:'full',
-        berlaku:'2027-12-31',
-        aktivasi_tanggal: new Date().toISOString().slice(0,10)
-      }
-    });
-    return inserted && inserted[0];
-  };
-
-  // ===== CRUD generic =====
-  MHD.list = async function(table, madrasahId, extra){
-    extra = extra || '';
-    // settings tidak memiliki created_at; salah order membuat seluruh pullAll gagal.
-    const orderCol = table === 'settings' ? 'updated_at' : 'created_at';
-    return rest('/'+table+'?madrasah_id=eq.'+madrasahId+(extra?'&'+extra:'')+'&order='+orderCol+'.asc');
-  };
-  MHD.upsert = async function(table, row, conflictCol){
-    return rest('/'+table+(conflictCol?'?on_conflict='+conflictCol:''), {
-      method:'POST',
-      headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
-      body: row
-    });
-  };
-  MHD.insert = async function(table, row){
-    return rest('/'+table, { method:'POST', body: row });
-  };
-  MHD.update = async function(table, id, patch){
-    return rest('/'+table+'?id=eq.'+id, { method:'PATCH', body: patch });
-  };
-  MHD.del = async function(table, id){
-    return rest('/'+table+'?id=eq.'+id, { method:'DELETE' });
-  };
-  MHD.deleteMissing = async function(table, madrasahId, keepIds){
-    const rows = await rest('/'+table+'?madrasah_id=eq.'+madrasahId+'&select=id');
-    const keep = new Set((keepIds||[]).map(String));
-    for(const r of (rows||[]).filter(r=>!keep.has(String(r.id)))) await MHD.del(table, r.id);
-  };
-
-  // ===== Sync helpers =====
-  // PostgreSQL memakai UUID, sedangkan data lokal lama memakai id seperti k1/s123.
-  function cloudUuid(id){
-    const s=String(id||'');
-    if(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s))return s;
-    let a=2166136261,b=0x9e3779b9,c=0x85ebca6b,d=0xc2b2ae35;
-    for(let i=0;i<s.length;i++){const x=s.charCodeAt(i);a=Math.imul(a^x,16777619);b=Math.imul(b+x,2246822519);c=Math.imul(c^x,3266489917);d=Math.imul(d+x,668265263)}
-    const h=n=>(n>>>0).toString(16).padStart(8,'0');const z=h(a)+h(b)+h(c)+h(d);
-    return z.slice(0,8)+'-'+z.slice(8,12)+'-4'+z.slice(13,16)+'-a'+z.slice(17,20)+'-'+z.slice(20,32);
+  function tenantOf(madrasahId){
+    return String(madrasahId || '').toUpperCase().replace(/[^A-Z0-9._-]/g, '').slice(0, 64);
   }
-  // Pull: ambil semua data madrasah dari server, simpan ke localStorage (cache)
-  MHD.pullAll = async function(madrasahId){
-    const [kelas, siswa, guru, presensi, presensiGuru, settings] = await Promise.all([
-      MHD.list('kelas', madrasahId),
-      MHD.list('siswa', madrasahId),
-      MHD.list('guru', madrasahId),
-      MHD.list('presensi', madrasahId),
-      MHD.list('presensi_guru', madrasahId),
-      rest('/settings?madrasah_id=eq.'+madrasahId+'&select=*&limit=1')
-    ]);
-    return { kelas, siswa, guru, presensi, presensiGuru, settings: settings && settings[0] };
+
+  // ===== Daftar kode aktivasi yang dikenal (dari LISENSI_DB lokal, kalau ada) =====
+  function localCodes(){
+    try{
+      if(typeof LISENSI_DB !== 'undefined' && Array.isArray(LISENSI_DB)) return LISENSI_DB;
+    }catch(e){}
+    return [];
+  }
+
+  // ===== Madrasah lookup by kode aktivasi =====
+  // Karena cloud di-key berdasarkan kode aktivasi, cukup validasi kode + bangun
+  // objek "madrasah" sintetis. (Data asli disimpan di tenant yang sama.)
+  MHD.findMadrasahByKode = async function(kode){
+    const k = tenantOf(kode);
+    if(!k) return null;
+    const list = localCodes();
+    const found = list.find(function(l){ return tenantOf(l.kode) === k; });
+    if(list.length && !found) return null;   // kode tidak dikenal
+    return {
+      id: k,
+      kode_aktivasi: k,
+      nama: (found && found.madrasah) || 'Madrasah',
+      alamat: (found && found.alamat) || '',
+      berlaku: (found && found.berlaku) || '2027-12-31',
+      tier: 'full'
+    };
   };
 
-  // Push: upload semua data localStorage ke server (one-shot migration)
+  // ===== Aktivasi =====
+  // Di model KV, madrasah otomatis "ada" begitu kode valid — tidak perlu insert.
+  MHD.aktivasi = async function(kode, fallbackNama, fallbackAlamat){
+    const k = tenantOf(kode);
+    if(!k) return null;
+    return {
+      id: k,
+      kode_aktivasi: k,
+      nama: fallbackNama || 'Madrasah',
+      alamat: fallbackAlamat || '',
+      berlaku: '2027-12-31',
+      tier: 'full'
+    };
+  };
+
+  // ===== Mapping lokal (camelCase) -> cloud (snake_case) =====
+  function mapKelas(k){
+    return { id:k.id, nama:k.nama, wali_kelas:k.waliKelas || k.wali_kelas || null };
+  }
+  function mapSiswa(s){
+    return {
+      id:s.id, kelas_id:s.kelas || s.kelas_id || null,
+      nama:s.nama, nisn:s.nisn || null, jk:s.jk || null,
+      tgl_lahir:s.tglLahir || s.tgl_lahir || null,
+      alamat:s.alamat || null, nama_ortu:s.namaOrtu || s.nama_ortu || null,
+      no_wa_ortu:s.noWaOrtu || s.no_wa_ortu || null,
+      photo:s.photo || null
+    };
+  }
+  function mapGuru(g){
+    return { id:g.id, nama:g.nama, nip:g.nip || null, jabatan:g.jabatan || null, no_wa:g.noWa || g.no_wa || null };
+  }
+  function mapPresensi(p){
+    const sid = p.siswa || p.siswaId || p.siswa_id;
+    if(!sid || !p.tanggal) return null;
+    return {
+      id: p.id || ('p_' + p.tanggal + '_' + sid),
+      siswa_id: sid, tanggal:p.tanggal, status:p.status || 'hadir',
+      waktu:p.waktuMasuk || p.waktu || null,
+      keterangan:p.keterangan || null,
+      recorded_by:p.recordedBy || p.recorded_by || null
+    };
+  }
+  function mapPresensiGuru(p){
+    const gid = p.guru || p.guruId || p.guru_id;
+    if(!gid || !p.tanggal) return null;
+    return {
+      id: p.id || ('pg_' + p.tanggal + '_' + gid),
+      guru_id: gid, tanggal:p.tanggal, status:p.status || 'hadir',
+      waktu_masuk:p.waktuMasuk || p.waktu_masuk || null,
+      waktu_pulang:p.waktuPulang || p.waktu_pulang || null,
+      keterangan:p.keterangan || null
+    };
+  }
+  function mapSettings(x){
+    x = x || {};
+    return {
+      jam_masuk:x.jamMasuk || '07:00',
+      batas_terlambat:x.batasTerlambat || '07:15',
+      jam_pulang:x.jamPulang || '14:00',
+      tahun_ajaran:x.tahunAjaran || null,
+      semester:x.semester || null,
+      extras:x,
+      updated_at:new Date().toISOString()
+    };
+  }
+
+  function mapCollection(col, value){
+    if(col === 'settings') return mapSettings(value);
+    const fn = col === 'kelas' ? mapKelas
+             : col === 'siswa' ? mapSiswa
+             : col === 'guru' ? mapGuru
+             : col === 'presensi' ? mapPresensi
+             : col === 'presensiGuru' ? mapPresensiGuru : null;
+    if(!fn) return [];
+    return (value || []).map(fn).filter(Boolean);
+  }
+
+  // ===== Pull: ambil semua data dari cloud (sudah dalam bentuk snake_case) =====
+  MHD.pullAll = async function(madrasahId){
+    const t = tenantOf(madrasahId);
+    if(!t) throw new Error('SyncCloud: tenant kosong');
+    const res = await rest('/data?t=' + encodeURIComponent(t));
+    const d = (res && res.data) || {};
+    return {
+      kelas: d.kelas || [],
+      siswa: d.siswa || [],
+      guru: d.guru || [],
+      presensi: d.presensi || [],
+      presensiGuru: d.presensiGuru || [],
+      settings: d.settings || null,
+      _updatedAt: res && res.updatedAt || null
+    };
+  };
+
+  // ===== Push: kirim hanya koleksi yang ada di payload =====
   MHD.pushAll = async function(madrasahId, payload){
-    const tasks = [];
-    if(payload.kelas && payload.kelas.length){
-      for(const k of payload.kelas){
-        tasks.push(MHD.upsert('kelas', { id:cloudUuid(k.id), madrasah_id:madrasahId, nama:k.nama, wali_kelas:k.waliKelas||null }, 'id'));
-      }
-    }
-    if(payload.siswa && payload.siswa.length){
-      for(const s of payload.siswa){
-        tasks.push(MHD.upsert('siswa', {
-          id:cloudUuid(s.id), madrasah_id:madrasahId, kelas_id:s.kelas?cloudUuid(s.kelas):null,
-          nama:s.nama, nisn:s.nisn||null, jk:s.jk||null,
-          tgl_lahir:s.tglLahir||null, alamat:s.alamat||null,
-          nama_ortu:s.namaOrtu||null, no_wa_ortu:s.noWaOrtu||null,
-          photo:s.photo||null
-        }, 'id'));
-      }
-    }
-    if(payload.guru && payload.guru.length){
-      for(const g of payload.guru){
-        tasks.push(MHD.upsert('guru', {
-          id:cloudUuid(g.id), madrasah_id:madrasahId, nama:g.nama,
-          nip:g.nip||null, jabatan:g.jabatan||null, no_wa:g.noWa||null
-        }, 'id'));
-      }
-    }
-    if(payload.presensi && payload.presensi.length){
-      for(const p of payload.presensi){
-        const sid = p.siswa || p.siswaId;
-        if(!sid || !p.tanggal) continue;
-        tasks.push(MHD.upsert('presensi', {
-          id: cloudUuid(p.id||('p_'+p.tanggal+'_'+sid)),
-          madrasah_id:madrasahId, siswa_id:cloudUuid(sid),
-          tanggal:p.tanggal, status:p.status||'hadir',
-          waktu:p.waktuMasuk||p.waktu||null,
-          keterangan:p.keterangan||null,
-          recorded_by:p.recordedBy||null
-        }, 'id'));
-      }
-    }
-    if(payload.presensiGuru && payload.presensiGuru.length){
-      for(const p of payload.presensiGuru){
-        const gid = p.guru || p.guruId;
-        if(!gid || !p.tanggal) continue;
-        tasks.push(MHD.upsert('presensi_guru', {
-          id: cloudUuid(p.id||('pg_'+p.tanggal+'_'+gid)),
-          madrasah_id:madrasahId, guru_id:cloudUuid(gid),
-          tanggal:p.tanggal, status:p.status||'hadir',
-          waktu_masuk:p.waktuMasuk||null,
-          waktu_pulang:p.waktuPulang||null,
-          keterangan:p.keterangan||null
-        }, 'id'));
-      }
-    }
-    if(payload.settings){
-      const x=payload.settings;
-      tasks.push(MHD.upsert('settings', { madrasah_id:madrasahId, jam_masuk:x.jamMasuk||'07:00', batas_terlambat:x.batasTerlambat||'07:15', jam_pulang:x.jamPulang||'14:00', tahun_ajaran:x.tahunAjaran||null, semester:x.semester||null, extras:x, updated_at:new Date().toISOString() }, 'madrasah_id'));
-    }
-    // Run in batches of 5 to avoid overload
+    const t = tenantOf(madrasahId);
+    if(!t) throw new Error('SyncCloud: tenant kosong');
+    payload = payload || {};
+    const body = {};
     const results = [];
-    for(let i=0;i<tasks.length;i+=5){
-      const batch = tasks.slice(i,i+5);
-      results.push(...await Promise.allSettled(batch));
+    COLLECTIONS.forEach(function(col){
+      if(!Object.prototype.hasOwnProperty.call(payload, col)) return;
+      body[col] = mapCollection(col, payload[col]);
+    });
+    const keys = Object.keys(body);
+    if(!keys.length) return results;
+    try{
+      await rest('/data?t=' + encodeURIComponent(t), { method:'POST', body: body });
+      keys.forEach(function(col){ results.push({ collection: col, status:'fulfilled' }); });
+    }catch(e){
+      keys.forEach(function(col){ results.push({ collection: col, status:'rejected', reason: e }); });
     }
-    const maps=[['kelas','kelas'],['siswa','siswa'],['guru','guru'],['presensi','presensi'],['presensiGuru','presensi_guru']];
-    for(const pair of maps){ if(Object.prototype.hasOwnProperty.call(payload,pair[0])){ try{ await MHD.deleteMissing(pair[1],madrasahId,(payload[pair[0]]||[]).map(x=>cloudUuid(x.id)).filter(Boolean)); } catch(e){ results.push({status:'rejected',reason:e}); } } }
     return results;
   };
 
-  // ===== Realtime subscribe =====
-  // Pakai Server-Sent Events / WebSocket Supabase Realtime
+  // ===== Notifikasi perubahan dari device lain =====
+  // Worker KV tidak punya realtime channel, jadi pakai polling ringan
+  // berdasarkan `updatedAt` per koleksi.
   MHD.subscribe = function(madrasahId, onChange){
-    if(!window.WebSocket) return null;
-    const wsUrl = SB_URL.replace(/^http/,'ws') + '/realtime/v1/websocket?apikey='+encodeURIComponent(SB_KEY)+'&vsn=1.0.0';
-    let ws;
-    try{ ws = new WebSocket(wsUrl); }catch(e){ console.warn('[MHDCloud] WS failed:',e); return null; }
-    ws.onopen = function(){
-      // Subscribe ke schema=public, semua tabel filter madrasah_id
-      const tables = ['kelas','siswa','guru','presensi','presensi_guru','settings'];
-      tables.forEach(t=>{
-        ws.send(JSON.stringify({
-          topic: 'realtime:public:'+t+':madrasah_id=eq.'+madrasahId,
-          event: 'phx_join',
-          payload: { config: { postgres_changes: [{ event:'*', schema:'public', table:t, filter:'madrasah_id=eq.'+madrasahId }] } },
-          ref: String(Date.now())
-        }));
-      });
-    };
-    ws.onmessage = function(ev){
+    const t = tenantOf(madrasahId);
+    if(!t || typeof onChange !== 'function') return null;
+    let stopped = false;
+    let lastSignature = null;
+    let first = true;
+
+    function signature(updatedAt){
+      if(!updatedAt) return '';
+      return Object.keys(updatedAt).sort().map(function(k){ return k + '=' + updatedAt[k]; }).join('|');
+    }
+
+    async function tick(){
+      if(stopped || !navigator.onLine) return;
       try{
-        const msg = JSON.parse(ev.data);
-        if(msg.event === 'postgres_changes' && msg.payload && msg.payload.data){
-          onChange && onChange(msg.payload.data);
+        const res = await rest('/data?t=' + encodeURIComponent(t));
+        const sig = signature(res && res.updatedAt);
+        if(first){ lastSignature = sig; first = false; return; }
+        if(sig && sig !== lastSignature){
+          lastSignature = sig;
+          onChange(res && res.data);
         }
-      }catch(e){}
+      }catch(e){ /* diamkan; status sync ditangani index.html */ }
+    }
+
+    const timer = setInterval(tick, 15000);
+    setTimeout(tick, 4000);
+    console.info('[MHDCloud] Polling subscribe aktif (15s).');
+    return {
+      close: function(){ stopped = true; clearInterval(timer); },
+      get closed(){ return stopped; }
     };
-    ws.onerror = function(e){ console.warn('[MHDCloud] WS error:',e); };
-    return ws;
   };
 
-  console.info('[MHDCloud] Enabled. URL:', SB_URL);
+  console.info('[MHDCloud] Enabled. Worker:', SYNC_URL);
 })();
