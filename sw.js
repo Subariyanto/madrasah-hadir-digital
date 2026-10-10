@@ -4,7 +4,7 @@
  *  - CDN libs (Tailwind, html5-qrcode, qrcodejs, jspdf): cache-first dengan revalidate
  *  - Static assets (icons, manifest): cache-first
  */
-const VERSION = 'mhd-v1.9.5-logout-welcome';
+const VERSION = 'mhd-v1.9.6-nurulkarim';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
