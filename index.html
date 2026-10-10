@@ -178,6 +178,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <a href="#" onclick="nav('panduan')" id="nav-panduan">📖 Panduan</a>
 <a href="#" onclick="nav('backup')" id="nav-backup">💾 Backup & Restore</a>
 <a href="#" onclick="nav('pengaturan')" id="nav-pengaturan">⚙️ Pengaturan</a>
+<a href="#" onclick="nav('terbitKode')" id="nav-terbitKode" style="display:none">🔑 Terbitkan Kode</a>
 <button onclick="logout()" style="margin-top:20px;color:#fecaca">🚪 Logout</button>
 <div style="margin-top:24px;padding:12px 14px 14px;border-top:1px solid rgba(255,255,255,0.18);font-size:11px;line-height:1.45;color:rgba(255,255,255,0.78);text-align:center">
 <div style="opacity:0.7;margin-bottom:4px">Aplikasi ini dibuat oleh:</div>
@@ -442,8 +443,8 @@ async function doAktivasi(){
       _DBraw.set('cloud_madrasah_id', m.id);
     }catch(e){
       console.warn('Cloud lookup gagal, fallback ke local:',e);
-      // Fallback ke LISENSI_DB lokal
-      const found=LISENSI_DB.find(l=>l.kode===input);
+      // Fallback ke LISENSI_DB lokal (+ kode terbitan admin)
+      const found=_mhdAllLisensi().find(l=>l.kode===input);
       if(!found){errEl.textContent='Kode aktivasi tidak valid (dan koneksi cloud gagal).';errEl.style.display='block';return;}
       if(found.berlaku<now){errEl.textContent='Kode ini sudah kadaluarsa (berlaku s/d '+found.berlaku+').';errEl.style.display='block';return;}
       kodeFinal=found.kode;
@@ -451,8 +452,8 @@ async function doAktivasi(){
       berlakuFinal=found.berlaku;
     }
   } else {
-    // Mode offline: pakai LISENSI_DB lokal
-    const found=LISENSI_DB.find(l=>l.kode===input);
+    // Mode offline: pakai LISENSI_DB lokal (+ kode terbitan admin)
+    const found=_mhdAllLisensi().find(l=>l.kode===input);
     if(!found){errEl.textContent='Kode aktivasi tidak valid. Hubungi Subariyanto.';errEl.style.display='block';return;}
     if(found.berlaku<now){errEl.textContent='Kode ini sudah kadaluarsa (berlaku s/d '+found.berlaku+').';errEl.style.display='block';return;}
     kodeFinal=found.kode;
@@ -659,7 +660,7 @@ function nav(page){
   currentPage=page;
   document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
   const el=document.getElementById('nav-'+page);if(el)el.classList.add('active');
-  const titles={home:'Beranda',dashboard:'Dashboard',presensi:'Presensi Manual',scan:'Scan QR',siswa:'Data Siswa',kelas:'Data Kelas',madrasah:'Data Madrasah',kartu:'Cetak Kartu QR',rekap:'Rekap Presensi',guru:'Data Guru',presensiGuru:'Presensi Guru',rekapGuru:'Rekap Presensi Guru',kartuGuru:'Cetak QR Guru',panduan:'Panduan Penggunaan',backup:'Backup & Restore',pengaturan:'Pengaturan'};
+  const titles={home:'Beranda',dashboard:'Dashboard',presensi:'Presensi Manual',scan:'Scan QR',siswa:'Data Siswa',kelas:'Data Kelas',madrasah:'Data Madrasah',kartu:'Cetak Kartu QR',rekap:'Rekap Presensi',guru:'Data Guru',presensiGuru:'Presensi Guru',rekapGuru:'Rekap Presensi Guru',kartuGuru:'Cetak QR Guru',panduan:'Panduan Penggunaan',backup:'Backup & Restore',pengaturan:'Pengaturan',terbitKode:'Terbitkan Kode Aktivasi'};
   document.getElementById('pageTitle').textContent=titles[page]||page;
   render();closeSidebarMobile();
 }
@@ -717,6 +718,7 @@ function render(){
     case'panduan':c.innerHTML=renderPanduan();break;
     case'backup':c.innerHTML=renderBackup();break;
     case'pengaturan':c.innerHTML=renderPengaturan();break;
+    case'terbitKode':c.innerHTML=renderTerbitKode();break;
   }
 }
 
@@ -749,6 +751,7 @@ function renderHome(){
     {p:'panduan',ic:'\u{1F4D6}',lbl:'Panduan',cls:'tile-slate'},
     {p:'pengaturan',ic:'\u{2699}\u{FE0F}',lbl:'Pengaturan',cls:'tile-slate'}
   ];
+  if(isAdminMode())tiles.push({p:'terbitKode',ic:'\u{1F511}',lbl:'Terbitkan Kode',cls:'tile-amber'});
   const grid=tiles.map(t=>'<div class="menu-tile-wrap"><a href="#" class="menu-tile '+(t.cls||'')+'" onclick="nav(\''+t.p+'\');return false;"><div class="ico">'+t.ic+'</div><div class="lbl">'+t.lbl+'</div></a></div>').join('');
   return '<div class="home-greet">'
     +'<div><h2>'+greet+' \u{1F44B}</h2><p>'+namaApp+'</p></div>'
@@ -2363,6 +2366,129 @@ function generateQRGuru(){
   });
 }
 
+// ===== ADMIN: TERBITKAN KODE AKTIVASI / LISENSI =====
+function _esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+const MHD_TERBIT_DAYS=730;
+function _addDaysISO(days){const d=new Date();d.setDate(d.getDate()+days);return d.toISOString().slice(0,10);}
+function _mhdTerbitList(){try{const x=JSON.parse(localStorage.getItem('list_terbitan')||'[]');return Array.isArray(x)?x:[];}catch(e){return [];}}
+function _mhdTerbitSave(list){try{localStorage.setItem('list_terbitan',JSON.stringify(list));}catch(e){}}
+function _mhdAllLisensi(){
+  const arr=(typeof LISENSI_DB!=='undefined'?LISENSI_DB:[]).map(x=>({kode:x.kode,madrasah:x.madrasah,berlaku:x.berlaku}));
+  _mhdTerbitList().forEach(x=>{if(x.status!=='nonaktif')arr.push({kode:x.kode,madrasah:x.madrasah,berlaku:x.berlaku,extra:true});});
+  return arr;
+}
+function _genKode(nama){
+  let slug=(nama||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,20)||'MADRASAH';
+  let kode='MHD-'+slug+'-2026';
+  const taken=_mhdAllLisensi().map(x=>x.kode);
+  let n=2;while(taken.indexOf(kode)!==-1){kode='MHD-'+slug+'-'+n+'-2026';n++;}
+  return kode;
+}
+function _copyFallback(txt){try{const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('Kode disalin: '+txt);}catch(e){toast('Gagal menyalin','error');}}
+function _copyText(txt){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>toast('Kode disalin: '+txt),()=>_copyFallback(txt));}else{_copyFallback(txt);}}catch(e){_copyFallback(txt);}}
+function _mhdShowAdminMenu(){try{const el=document.getElementById('nav-terbitKode');if(el)el.style.display=isAdminMode()?'flex':'none';}catch(e){}}
+function _terbitErr(msg){const el=document.getElementById('terbitError');if(el){el.textContent=msg;el.style.display='block';}}
+function _terbitClearErr(){const el=document.getElementById('terbitError');if(el)el.style.display='none';}
+function terbitSetBerlaku(days){const el=document.getElementById('terbitBerlaku');if(el)el.value=_addDaysISO(days);}
+function terbitSimpan(){
+  _terbitClearErr();
+  const nama=(document.getElementById('terbitNama').value||'').trim();
+  const alamat=(document.getElementById('terbitAlamat').value||'').trim();
+  let kode=(document.getElementById('terbitKodeInput').value||'').trim().toUpperCase();
+  const berlaku=(document.getElementById('terbitBerlaku').value||'').trim()||_addDaysISO(MHD_TERBIT_DAYS);
+  if(!nama){_terbitErr('Nama madrasah wajib diisi');return;}
+  if(!kode)kode=_genKode(nama);
+  const taken=_mhdAllLisensi().map(x=>x.kode);
+  if(taken.indexOf(kode)!==-1){_terbitErr('Kode "'+kode+'" sudah dipakai. Gunakan kode lain.');return;}
+  const today=new Date().toISOString().slice(0,10);
+  const list=_mhdTerbitList();
+  list.unshift({kode:kode,madrasah:nama,alamat:alamat,berlaku:berlaku,tier:'full',terbitTanggal:today,aktivasiTanggal:'',status:'aktif'});
+  _mhdTerbitSave(list);
+  toast('Kode diterbitkan: '+kode);
+  render();
+}
+function terbitToggle(i){const list=_mhdTerbitList();if(!list[i])return;list[i].status=(list[i].status==='nonaktif')?'aktif':'nonaktif';_mhdTerbitSave(list);render();toast('Status diubah');}
+function terbitHapus(i){const list=_mhdTerbitList();if(!list[i])return;if(!confirm('Hapus kode '+list[i].kode+'?'))return;const k=list[i].kode;list.splice(i,1);_mhdTerbitSave(list);render();toast('Kode dihapus: '+k);}
+function terbitLihat(i){
+  const list=_mhdTerbitList();if(!list[i])return;const x=list[i];
+  const html='<div class="overlay" onclick="if(event.target===this)this.remove()"><div class="modal">'+
+    '<h3 style="margin:0 0 10px;color:#15803d">\u{1F511} '+_esc(x.kode)+'</h3>'+
+    '<p style="font-size:13px;margin:4px 0"><b>Madrasah:</b> '+_esc(x.madrasah)+'</p>'+
+    '<p style="font-size:13px;margin:4px 0"><b>Alamat:</b> '+_esc(x.alamat||'-')+'</p>'+
+    '<p style="font-size:13px;margin:4px 0"><b>Berlaku s/d:</b> '+_esc(x.berlaku||'-')+'</p>'+
+    '<p style="font-size:13px;margin:4px 0"><b>Tier:</b> '+_esc(String(x.tier||'full').toUpperCase())+'</p>'+
+    '<p style="font-size:13px;margin:4px 0"><b>Terbit:</b> '+_esc(x.terbitTanggal||'-')+'</p>'+
+    '<p style="font-size:13px;margin:4px 0"><b>Aktivasi:</b> '+_esc(x.aktivasiTanggal||'belum')+'</p>'+
+    '<p style="font-size:13px;margin:4px 0"><b>Status:</b> '+_esc(x.status||'aktif')+'</p>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">'+
+      '<button class="btn btn-secondary" onclick="_copyText(\''+x.kode+'\')">Salin Kode</button>'+
+      '<button class="btn btn-primary" onclick="this.closest(\'.overlay\').remove()">Tutup</button>'+
+    '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function terbitExportCSV(){
+  const list=_mhdTerbitList();
+  if(!list.length){toast('Belum ada kode','warning');return;}
+  const header=['kode','madrasah','alamat','berlaku','tier','terbit_tanggal','aktivasi_tanggal','status'];
+  const rows=list.map(x=>[x.kode,x.madrasah,x.alamat||'',x.berlaku||'',x.tier||'full',x.terbitTanggal||'',x.aktivasiTanggal||'',x.status||'aktif']);
+  const csv=[header.join(',')].concat(rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','))).join('\r\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kode-terbitan-'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+  toast('Export '+list.length+' kode');
+}
+function renderTerbitKode(){
+  if(!isAdminMode()){return '<div class="card"><h3 style="margin:0 0 8px;color:#15803d">\u{1F511} Terbitkan Kode Aktivasi</h3><p style="font-size:13px;color:#6b7280">Halaman ini hanya dapat diakses pada mode admin (<code>?mode=admin</code>).</p></div>';}
+  const list=_mhdTerbitList();
+  const today=new Date().toISOString().slice(0,10);
+  const defBerlaku=_addDaysISO(MHD_TERBIT_DAYS);
+  const kodeOtomatis=_genKode('');
+  const rows=list.map((x,i)=>{
+    const exp=x.berlaku && x.berlaku<today;
+    const st=x.status==='nonaktif'?'<span style="color:#dc2626;font-weight:600">Nonaktif</span>':(exp?'<span style="color:#b45309;font-weight:600">Kadaluarsa</span>':'<span style="color:#16a34a;font-weight:600">Aktif</span>');
+    return '<tr>'+
+      '<td style="font-family:monospace;font-size:12px">'+_esc(x.kode)+'</td>'+
+      '<td>'+_esc(x.madrasah)+'</td>'+
+      '<td style="font-size:12px">'+_esc(x.berlaku||'-')+'</td>'+
+      '<td style="font-size:12px">'+_esc(String(x.tier||'full').toUpperCase())+'</td>'+
+      '<td style="font-size:12px">'+_esc(x.aktivasiTanggal||'-')+'</td>'+
+      '<td style="font-size:12px">'+st+'</td>'+
+      '<td style="white-space:nowrap">'+
+        '<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px" onclick="_copyText(\''+x.kode+'\')">Salin</button> '+
+        '<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px" onclick="terbitLihat('+i+')">Detail</button> '+
+        '<button class="btn '+(x.status==='nonaktif'?'btn-primary':'btn-danger')+'" style="padding:4px 8px;font-size:11px" onclick="terbitToggle('+i+')">'+(x.status==='nonaktif'?'Aktifkan':'Nonaktifkan')+'</button> '+
+        '<button class="btn btn-danger" style="padding:4px 8px;font-size:11px" onclick="terbitHapus('+i+')">Hapus</button>'+
+      '</td></tr>';
+  }).join('');
+  return '<div class="card">'+
+    '<h3 style="margin:0 0 6px;color:#15803d">\u{1F511} Terbitkan Kode Aktivasi / Lisensi</h3>'+
+    '<p style="font-size:12px;color:#6b7280;margin:0 0 14px">Buat kode aktivasi untuk madrasah. Kode langsung aktif di perangkat ini (mode offline). Supaya kode berlaku di <b>semua device</b>, kode juga harus ditambahkan ke <code>LISENSI_DB</code> lalu di-deploy.</p>'+
+    '<label style="font-size:13px;color:#374151">Nama Madrasah Lengkap</label>'+
+    '<input id="terbitNama" placeholder="Contoh: MI Nurul Karim Banyuwangi" oninput="var p=document.getElementById(\'terbitKodeInput\');if(!p.value)p.placeholder=_genKode(this.value)" style="margin-bottom:10px">'+
+    '<label style="font-size:13px;color:#374151">Alamat Madrasah</label>'+
+    '<input id="terbitAlamat" placeholder="Alamat lengkap" style="margin-bottom:10px">'+
+    '<label style="font-size:13px;color:#374151">Kode Aktivasi <span style="color:#9ca3af">(kosongkan untuk otomatis)</span></label>'+
+    '<input id="terbitKodeInput" placeholder="'+kodeOtomatis+'" style="margin-bottom:10px;text-transform:uppercase">'+
+    '<label style="font-size:13px;color:#374151">Masa Berlaku s/d</label>'+
+    '<input id="terbitBerlaku" type="date" value="'+defBerlaku+'" style="margin-bottom:10px">'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">'+
+      '<button class="btn btn-secondary" style="font-size:12px" onclick="terbitSetBerlaku('+MHD_TERBIT_DAYS+')">+2 Tahun (default)</button>'+
+      '<button class="btn btn-secondary" style="font-size:12px" onclick="terbitSetBerlaku(365)">+1 Tahun</button>'+
+      '<button class="btn btn-secondary" style="font-size:12px" onclick="terbitSetBerlaku(1095)">+3 Tahun</button>'+
+    '</div>'+
+    '<button class="btn btn-primary" onclick="terbitSimpan()">\u{1F511} Terbitkan Kode</button> '+
+    (list.length?'<button class="btn btn-secondary" onclick="terbitExportCSV()">\u2B07\uFE0F Export CSV</button>':'')+
+    '<p id="terbitError" style="color:#dc2626;font-size:12px;margin-top:10px;display:none"></p>'+
+  '</div>'+
+  '<div class="card" style="margin-top:16px">'+
+    '<h3 style="margin:0 0 10px;font-size:15px;color:#15803d">Daftar Kode Terbitan (perangkat ini): '+list.length+'</h3>'+
+    (list.length?('<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'+
+      '<thead><tr style="text-align:left;color:#6b7280;font-size:12px">'+
+      '<th style="padding:6px">Kode</th><th style="padding:6px">Madrasah</th><th style="padding:6px">Berlaku</th><th style="padding:6px">Tier</th><th style="padding:6px">Aktivasi</th><th style="padding:6px">Status</th><th style="padding:6px">Aksi</th></tr></thead>'+
+      '<tbody>'+rows+'</tbody></table></div>')
+      :'<p style="font-size:13px;color:#6b7280">Belum ada kode yang diterbitkan dari perangkat ini.</p>')+
+  '</div>';
+}
+
 // ===== INIT APP =====
 function initApp(){
   const settings=DB.get('settings')||{};
@@ -2372,6 +2498,7 @@ function initApp(){
     document.getElementById('hamburger').style.display=window.innerWidth<=768?'block':'none';
     if(window.innerWidth>768)document.getElementById('sidebar').classList.remove('show-mobile');
   });
+  _mhdShowAdminMenu();
   nav('home');
   _mhdCloudStart();
 }
