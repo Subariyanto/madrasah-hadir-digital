@@ -134,6 +134,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <button class="btn" style="width:100%;margin-top:8px;background:#fbbf24;color:#000;border:none;padding:10px;border-radius:8px;font-weight:600;cursor:pointer" onclick="doTrialAktivasi()">🎁 Coba Gratis 5 Hari</button>
 <p id="aktivasiError" style="color:#dc2626;font-size:12px;margin-top:8px;display:none"></p>
 <p id="aktivasiInfo" style="color:#6b7280;font-size:11px;margin-top:16px">Hubungi Subariyanto, di No. Hp. 082330647698 untuk mendapatkan Kode Aktivasi FULL</p>
+<p style="margin-top:12px;font-size:12px"><a href="#" onclick="showAdminLogin();return false" style="color:#15803d;font-weight:600">🔐 Login Admin</a></p>
 </div>
 </div>
 
@@ -145,6 +146,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <p id="welcomeMadrasah" style="color:#374151;font-size:14px;margin-bottom:16px;font-weight:600"></p>
 <button class="btn btn-primary" style="width:100%" onclick="doMasukKembali()">🔓 Masuk Kembali</button>
 <button class="btn btn-danger" style="width:100%;margin-top:8px" onclick="hapusAktivasi()">🗑️ Ganti Madrasah / Hapus Aktivasi</button>
+<p style="margin-top:12px;font-size:12px"><a href="#" onclick="showAdminLogin();return false" style="color:#15803d;font-weight:600">🔐 Login Admin</a></p>
 <p style="color:#6b7280;font-size:11px;margin-top:16px">Aplikasi ini dibuat oleh:<br><b>Subariyanto, S.Pd, M.Pd.I.</b><br>Ketua Pokjawas Kab. Jember</p>
 </div>
 </div>
@@ -158,6 +160,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <input type="password" id="loginPass" placeholder="Password" style="margin-bottom:16px"><br>
 <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Masuk</button>
 <p id="loginError" style="color:#dc2626;font-size:12px;margin-top:8px;display:none">Username atau password salah</p>
+<p style="margin-top:14px;font-size:12px"><a href="#" onclick="backFromAdminLogin();return false" style="color:#6b7280">← Kembali (aktivasi madrasah)</a></p>
 </div>
 </div>
 
@@ -545,8 +548,29 @@ function initData(){
 
 // ===== AUTH =====
 let loggedIn=false;
+// Admin ditentukan dari akun yang login (bukan dari link). Satu link untuk semua.
 function isAdminMode(){
+  try{return localStorage.getItem('role')==='admin'&&localStorage.getItem('loggedIn')==='true';}catch(e){return false;}
+}
+// Link lama ?mode=admin tetap didukung: langsung buka layar login admin
+function _wantAdminLogin(){
   try{return new URLSearchParams(window.location.search).get('mode')==='admin';}catch(e){return false;}
+}
+function showAdminLogin(){
+  ['aktivasiScreen','welcomeScreen'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('loginError').style.display='none';
+  var u=document.getElementById('loginUser');if(u&&!u.value)u.value='admin';
+  var p=document.getElementById('loginPass');if(p){p.value='';setTimeout(function(){p.focus();},50);}
+}
+function backFromAdminLogin(){
+  document.getElementById('loginScreen').style.display='none';
+  var lis=_DBraw.get('lisensi');
+  if(lis&&lis.kode!=='ADMIN-MASTER'&&localStorage.getItem('mhd_logged_out')==='1'){
+    document.getElementById('welcomeScreen').style.display='flex';
+  }else{
+    document.getElementById('aktivasiScreen').style.display='flex';
+  }
 }
 function checkAuth(){
   loggedIn=localStorage.getItem('loggedIn')==='true';
@@ -2443,7 +2467,7 @@ function terbitExportCSV(){
   toast('Export '+list.length+' kode');
 }
 function renderTerbitKode(){
-  if(!isAdminMode()){return '<div class="card"><h3 style="margin:0 0 8px;color:#15803d">\u{1F511} Terbitkan Kode Aktivasi</h3><p style="font-size:13px;color:#6b7280">Halaman ini hanya dapat diakses pada mode admin (<code>?mode=admin</code>).</p></div>';}
+  if(!isAdminMode()){return '<div class="card"><h3 style="margin:0 0 8px;color:#15803d">\u{1F511} Terbitkan Kode Aktivasi</h3><p style="font-size:13px;color:#6b7280">Halaman ini hanya untuk akun admin. Silakan logout lalu login sebagai admin.</p></div>';}
   const list=_mhdTerbitList();
   const today=new Date().toISOString().slice(0,10);
   const defBerlaku=_addDaysISO(MHD_TERBIT_DAYS);
@@ -2512,26 +2536,20 @@ function initApp(){
 // ===== BOOT =====
 function boot(){
   initData();
-  // Cek apakah ini halaman admin (?mode=admin)
-  var isAdminMode = window.location.search.indexOf('mode=admin') !== -1;
-  if(isAdminMode){
-    // Admin: kalau sudah login → langsung masuk dashboard
-    if(localStorage.getItem('loggedIn')==='true'){
-      loggedIn=true;
-      ensureAdminLisensi();
-      initApp();
-      return;
-    }
-    // Belum login → tampilkan login screen
-    document.getElementById('loginScreen').style.display='flex';
-    document.getElementById('aktivasiScreen').style.display='none';
-    setTimeout(function(){
-      var u=document.getElementById('loginUser'); if(u) u.value='admin';
-    }, 100);
+  var lisensi = _DBraw.get('lisensi');
+  // Sesi admin masih aktif → langsung masuk (menu admin muncul)
+  if(localStorage.getItem('loggedIn')==='true' && localStorage.getItem('role')==='admin'){
+    loggedIn=true;
+    ensureAdminLisensi();
+    initApp();
+    return;
+  }
+  // Link lama ?mode=admin, atau perangkat admin yang sudah logout → layar login admin
+  if(_wantAdminLogin() || (lisensi && lisensi.kode==='ADMIN-MASTER')){
+    showAdminLogin();
     return;
   }
   // User madrasah baru logout: jangan auto-login lagi; tampilkan layar masuk kembali.
-  var lisensi = _DBraw.get('lisensi');
   if(localStorage.getItem('mhd_logged_out')==='1' && lisensi){
     var ws=document.getElementById('welcomeScreen');
     if(ws){
@@ -2547,8 +2565,9 @@ function boot(){
   if(lisensi && lisensi.tier==='full'){
     var now = new Date().toISOString().slice(0,10);
     if(lisensi.berlaku >= now){
-      // Lisensi valid → auto-login, langsung dashboard
+      // Lisensi valid → auto-login sebagai madrasah, langsung dashboard
       localStorage.setItem('loggedIn','true');
+      localStorage.setItem('role','madrasah');
       loggedIn=true;
       initApp();
       return;
@@ -2560,8 +2579,9 @@ function boot(){
     }
   }
   if(lisensi && lisensi.tier==='trial'){
-    // Trial: auto-login, langsung dashboard
+    // Trial: auto-login sebagai madrasah, langsung dashboard
     localStorage.setItem('loggedIn','true');
+    localStorage.setItem('role','madrasah');
     loggedIn=true;
     initApp();
     return;
