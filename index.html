@@ -158,7 +158,7 @@ input,select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-si
 <p style="color:#6b7280;font-size:13px;margin-bottom:20px">Sistem Presensi Digital</p>
 <input type="text" id="loginUser" placeholder="Username" style="margin-bottom:10px"><br>
 <input type="password" id="loginPass" placeholder="Password" style="margin-bottom:16px"><br>
-<button class="btn btn-primary" style="width:100%" onclick="doLogin()">Masuk</button>
+<button class="btn btn-primary" id="loginBtn" style="width:100%" onclick="doLogin()">Masuk</button>
 <p id="loginError" style="color:#dc2626;font-size:12px;margin-top:8px;display:none">Username atau password salah</p>
 <p style="margin-top:14px;font-size:12px"><a href="#" onclick="backFromAdminLogin();return false" style="color:#6b7280">← Kembali (aktivasi madrasah)</a></p>
 </div>
@@ -442,6 +442,9 @@ async function doAktivasi(){
       if(!m){
         errEl.textContent='Kode aktivasi tidak terdaftar di server. Hubungi Subariyanto.';errEl.style.display='block';return;
       }
+      if(m.status==='nonaktif'){
+        errEl.textContent='Kode aktivasi ini dinonaktifkan oleh admin. Hubungi Subariyanto.';errEl.style.display='block';return;
+      }
       if(m.berlaku && m.berlaku<now){
         errEl.textContent='Kode ini sudah kadaluarsa (berlaku s/d '+m.berlaku+'). Hubungi Subariyanto.';errEl.style.display='block';return;
       }
@@ -532,16 +535,17 @@ function initData(){
     ];
     DB.set('kelas',kelas);DB.set('siswa',[]);DB.set('presensi',[]);
     DB.set('teachers',[]);DB.set('teacherAttendance',[]);
-    DB.set('credentials',{username:'admin',password:'@riyant1970'});
+    // Password admin TIDAK disimpan di perangkat; diverifikasi di server.
+    DB.set('credentials',{username:'admin',password:''});
     DB.set('initialized',true);
   }
   // Ensure teachers key exists for older installs
   if(!DB.get('teachers'))DB.set('teachers',[]);
   if(!DB.get('teacherAttendance'))DB.set('teacherAttendance',[]);
-  // Migrasi: kalau credentials masih pakai password lama, update ke yang baru
+  // Hapus password lama yang terlanjur tersimpan di perangkat (sekarang di server)
   var cred=DB.get('credentials');
-  if(cred && cred.username==='admin' && cred.password==='admin123'){
-    cred.password='@riyant1970';
+  if(cred && cred.password){
+    cred.password='';
     DB.set('credentials',cred);
   }
 }
@@ -606,36 +610,33 @@ function checkAuth(){
   }
   document.getElementById('loginScreen').style.display='flex';
 }
-function doLogin(){
-  const u=document.getElementById('loginUser').value;
-  const p=document.getElementById('loginPass').value;
-  const cred=DB.get('credentials');
-  if(u===cred.username&&p===cred.password){
-    localStorage.setItem('role',u==='admin'?'admin':'madrasah');
+async function doLogin(){
+  const u=(document.getElementById('loginUser').value||'').trim();
+  const p=document.getElementById('loginPass').value||'';
+  const errEl=document.getElementById('loginError');
+  const btn=document.getElementById('loginBtn');
+  if(!u||!p){errEl.textContent='Username dan password wajib diisi';errEl.style.display='block';return}
+  if(!window.MHDCloud||!window.MHDCloud.enabled||!window.MHDCloud.adminLogin){
+    errEl.textContent='Tidak bisa menghubungi server. Periksa koneksi internet.';errEl.style.display='block';return;
+  }
+  if(btn){btn.disabled=true;btn.textContent='Memeriksa...';}
+  try{
+    const res=await window.MHDCloud.adminLogin(u,p);
+    localStorage.setItem('role','admin');
     localStorage.setItem('loggedIn','true');loggedIn=true;
+    localStorage.setItem('mhd_login_ok', new Date().toISOString());
+    localStorage.removeItem('mhd_logged_out');
     document.getElementById('loginScreen').style.display='none';
-    document.getElementById('loginError').style.display='none';
-    // Admin: auto-bypass aktivasi (admin yang nerbitin kode aktivasi)
-    if(u==='admin'){
-      ensureAdminLisensi();
-    }else{
-      // User non-admin: wajib aktivasi (cek lisensi & masa berlaku)
-      const lisensi=DB.get('lisensi');
-      const now=new Date().toISOString().slice(0,10);
-      if(!lisensi){
-        localStorage.removeItem('loggedIn');loggedIn=false;
-        showAktivasi();
-        return;
-      }
-      if(lisensi.tier!=='trial' && lisensi.berlaku && lisensi.berlaku<now){
-        localStorage.removeItem('loggedIn');loggedIn=false;
-        DB.del('lisensi');
-        showAktivasi('Lisensi sudah kadaluarsa. Hubungi Subariyanto untuk kode baru.');
-        return;
-      }
-    }
+    errEl.style.display='none';
+    ensureAdminLisensi();
     initApp();
-  }else{document.getElementById('loginError').style.display='block'}
+    toast('Selamat datang, '+(res.username||'admin'));
+  }catch(e){
+    errEl.textContent=(e&&e.message)?e.message.replace(/^SyncCloud:\s*/,''):'Username atau password salah';
+    errEl.style.display='block';
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Masuk';}
+  }
 }
 function ensureAdminLisensi(){
   // Admin selalu punya lisensi FULL permanen (silent set)
@@ -650,8 +651,9 @@ function logout(){
     if(!confirm('Logout admin?'))return;
     localStorage.removeItem('loggedIn');
     localStorage.removeItem('role');
+    try{if(window.MHDCloud&&window.MHDCloud.adminLogout)window.MHDCloud.adminLogout();}catch(e){}
     // Lisensi tetap disimpan; logout hanya mengakhiri sesi.
-    location.reload();
+    setTimeout(()=>location.reload(),300);
     return;
   }
   // User madrasah: keluar sesi, lisensi tetap. Tampilkan welcome screen.
@@ -748,7 +750,7 @@ function render(){
     case'panduan':c.innerHTML=renderPanduan();break;
     case'backup':c.innerHTML=renderBackup();break;
     case'pengaturan':c.innerHTML=renderPengaturan();break;
-    case'terbitKode':c.innerHTML=renderTerbitKode();break;
+    case'terbitKode':c.innerHTML=renderTerbitKode();setTimeout(terbitLoad,50);break;
   }
 }
 
@@ -1939,12 +1941,15 @@ function renderPengaturan(){
   '</div>'+
   '<button class="btn btn-primary" onclick="saveWaSettings()">\u{1F4BE} Simpan Pengaturan WA</button>'+
   '<hr style="margin:20px 0;border-color:#e5e7eb">'+
-  '<h3 style="margin:0 0 16px;font-size:15px;color:#15803d">Ubah Password</h3>'+
+  '<h3 style="margin:0 0 16px;font-size:15px;color:#15803d">Ubah Password Admin</h3>'+
+  '<p style="font-size:12px;color:#6b7280;margin:0 0 10px">Password admin dicek di server. Setelah diubah, semua perangkat admin lain harus login ulang.</p>'+
   '<label style="font-size:13px;color:#374151">Username</label>'+
-  '<input id="setUser" value="'+(cred.username||'')+'" style="margin-bottom:10px">'+
-  '<label style="font-size:13px;color:#374151">Password Baru</label>'+
-  '<input type="password" id="setPass" placeholder="Kosongkan jika tidak diubah" style="margin-bottom:16px">'+
-  '<button class="btn btn-primary" onclick="saveCredentials()">\u{1F511} Ubah Login</button>'+
+  '<input id="setUser" value="'+(cred.username||'admin')+'" readonly style="margin-bottom:10px;background:#f3f4f6">'+
+  '<label style="font-size:13px;color:#374151">Password Baru (min. 6 karakter)</label>'+
+  '<input type="password" id="setPass" placeholder="Password baru" style="margin-bottom:10px">'+
+  '<label style="font-size:13px;color:#374151">Ulangi Password Baru</label>'+
+  '<input type="password" id="setPass2" placeholder="Ulangi password baru" style="margin-bottom:16px">'+
+  '<button class="btn btn-primary" onclick="saveCredentials()">\u{1F511} Ubah Password</button>'+
   '<hr style="margin:20px 0;border-color:#e5e7eb">'+
   '<h3 style="margin:0 0 16px;font-size:15px;color:#dc2626">Reset Data</h3>'+
   '<p style="font-size:13px;color:#6b7280;margin-bottom:10px">Hapus semua data presensi dan siswa. Lisensi tetap aktif.</p>'+
@@ -2069,15 +2074,27 @@ function saveWaSettings(){
   DB.set('settings',settings);
   toast('Pengaturan WA berhasil disimpan!');
 }
-function saveCredentials(){
-  const username=document.getElementById('setUser').value.trim();
-  const password=document.getElementById('setPass').value;
-  if(!username){toast('Username harus diisi','error');return}
-  const cred=DB.get('credentials')||{};
-  cred.username=username;
-  if(password)cred.password=password;
-  DB.set('credentials',cred);
-  toast('Login berhasil diubah!');
+async function saveCredentials(){
+  const pass=document.getElementById('setPass').value||'';
+  const pass2=document.getElementById('setPass2').value||'';
+  if(!pass){toast('Password baru belum diisi','error');return}
+  if(pass.length<6){toast('Password minimal 6 karakter','error');return}
+  if(pass!==pass2){toast('Ulangi password tidak sama','error');return}
+  if(!isAdminMode()){toast('Hanya admin yang bisa mengubah password','error');return}
+  if(!window.MHDCloud||!window.MHDCloud.adminUbahPassword){toast('Butuh koneksi internet','error');return}
+  if(!confirm('Ubah password admin? Semua perangkat admin harus login ulang.'))return;
+  try{
+    await window.MHDCloud.adminUbahPassword(pass);
+    // Simpan juga di perangkat ini supaya tampilan username tetap ada
+    const cred=DB.get('credentials')||{username:'admin'};
+    cred.username=cred.username||'admin';
+    cred.password='';
+    DB.set('credentials',cred);
+    toast('Password admin diubah. Silakan login ulang.');
+    setTimeout(()=>{localStorage.removeItem('loggedIn');localStorage.removeItem('role');location.reload();},1200);
+  }catch(e){
+    toast('Gagal mengubah password: '+((e&&e.message)||e),'error');
+  }
 }
 function resetData(){
   if(!confirmDialog('YAKIN hapus semua data siswa dan presensi? Lisensi tetap aktif.'))return;
@@ -2397,11 +2414,18 @@ function generateQRGuru(){
 }
 
 // ===== ADMIN: TERBITKAN KODE AKTIVASI / LISENSI =====
+// Sumber data: server VPS (api.pokjawasjember.com/mhd). Kode yang terbit di sini
+// langsung berlaku di semua perangkat madrasah. localStorage hanya cache tampilan.
 function _esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
 const MHD_TERBIT_DAYS=730;
 function _addDaysISO(days){const d=new Date();d.setDate(d.getDate()+days);return d.toISOString().slice(0,10);}
 function _mhdTerbitList(){try{const x=JSON.parse(localStorage.getItem('list_terbitan')||'[]');return Array.isArray(x)?x:[];}catch(e){return [];}}
 function _mhdTerbitSave(list){try{localStorage.setItem('list_terbitan',JSON.stringify(list));}catch(e){}}
+function _mhdLicNormalize(x){
+  return {kode:x.kode||'',madrasah:x.madrasah||'',alamat:x.alamat||'',berlaku:x.berlaku||'',tier:x.tier||'full',
+    terbitTanggal:x.terbit_tanggal||x.terbitTanggal||'',aktivasiTanggal:x.aktivasi_tanggal||x.aktivasiTanggal||'',
+    status:(x.status_admin||x.status||'aktif')};
+}
 function _mhdAllLisensi(){
   const arr=(typeof LISENSI_DB!=='undefined'?LISENSI_DB:[]).map(x=>({kode:x.kode,madrasah:x.madrasah,berlaku:x.berlaku}));
   _mhdTerbitList().forEach(x=>{if(x.status!=='nonaktif')arr.push({kode:x.kode,madrasah:x.madrasah,berlaku:x.berlaku,extra:true});});
@@ -2409,9 +2433,9 @@ function _mhdAllLisensi(){
 }
 function _genKode(nama){
   let slug=(nama||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,20)||'MADRASAH';
-  let kode='MHD-'+slug+'-2026';
+  let kode='MHD-'+slug+'-'+new Date().getFullYear();
   const taken=_mhdAllLisensi().map(x=>x.kode);
-  let n=2;while(taken.indexOf(kode)!==-1){kode='MHD-'+slug+'-'+n+'-2026';n++;}
+  let n=2;while(taken.indexOf(kode)!==-1){kode='MHD-'+slug+'-'+n+'-'+new Date().getFullYear();n++;}
   return kode;
 }
 function _copyFallback(txt){try{const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('Kode disalin: '+txt);}catch(e){toast('Gagal menyalin','error');}}
@@ -2420,25 +2444,118 @@ function _mhdShowAdminMenu(){try{const el=document.getElementById('nav-terbitKod
 function _terbitErr(msg){const el=document.getElementById('terbitError');if(el){el.textContent=msg;el.style.display='block';}}
 function _terbitClearErr(){const el=document.getElementById('terbitError');if(el)el.style.display='none';}
 function terbitSetBerlaku(days){const el=document.getElementById('terbitBerlaku');if(el)el.value=_addDaysISO(days);}
-function terbitSimpan(){
+
+// ---- daftar kode dari server ----
+function _terbitListHTML(list){
+  const today=new Date().toISOString().slice(0,10);
+  if(!list.length)return '<p style="font-size:13px;color:#6b7280">Belum ada kode di server.</p>';
+  const rows=list.map((x,i)=>{
+    const exp=x.berlaku && x.berlaku<today;
+    const st=x.status==='nonaktif'?'<span style="color:#dc2626;font-weight:600">Nonaktif</span>':(exp?'<span style="color:#b45309;font-weight:600">Kadaluarsa</span>':'<span style="color:#16a34a;font-weight:600">Aktif</span>');
+    return '<tr>'+
+      '<td style="font-family:monospace;font-size:12px">'+_esc(x.kode)+'</td>'+
+      '<td>'+_esc(x.madrasah)+'</td>'+
+      '<td style="font-size:12px">'+_esc(x.berlaku||'-')+'</td>'+
+      '<td style="font-size:12px">'+_esc(String(x.tier||'full').toUpperCase())+'</td>'+
+      '<td style="font-size:12px">'+_esc(x.aktivasiTanggal||'-')+'</td>'+
+      '<td style="font-size:12px">'+st+'</td>'+
+      '<td style="white-space:nowrap">'+
+        '<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px" onclick="_copyText(\''+x.kode+'\')">Salin</button> '+
+        '<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px" onclick="terbitLihat('+i+')">Detail</button> '+
+        '<button class="btn '+(x.status==='nonaktif'?'btn-primary':'btn-danger')+'" style="padding:4px 8px;font-size:11px" onclick="terbitToggle('+i+')">'+(x.status==='nonaktif'?'Aktifkan':'Nonaktifkan')+'</button> '+
+        '<button class="btn btn-danger" style="padding:4px 8px;font-size:11px" onclick="terbitHapus('+i+')">Hapus</button>'+
+      '</td></tr>';
+  }).join('');
+  return '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'+
+    '<thead><tr style="text-align:left;color:#6b7280;font-size:12px">'+
+    '<th style="padding:6px">Kode</th><th style="padding:6px">Madrasah</th><th style="padding:6px">Berlaku</th><th style="padding:6px">Tier</th><th style="padding:6px">Aktivasi</th><th style="padding:6px">Status</th><th style="padding:6px">Aksi</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function _terbitPaint(statusHtml){
+  const wrap=document.getElementById('terbitListWrap');
+  if(!wrap)return;
+  const list=_mhdTerbitList();
+  wrap.innerHTML=(statusHtml||'')+_terbitListHTML(list);
+  const cnt=document.getElementById('terbitCount');
+  if(cnt)cnt.textContent='Kode di server: '+list.length;
+}
+async function terbitLoad(){
+  const wrap=document.getElementById('terbitListWrap');
+  const setWrap=function(html){if(wrap)wrap.innerHTML=html;};
+  if(!window.MHDCloud||!window.MHDCloud.enabled||!window.MHDCloud.adminLisensiList){
+    setWrap('<p style="font-size:13px;color:#b45309">Mode offline: daftar di bawah hanya cache perangkat ini.</p>'+_terbitListHTML(_mhdTerbitList()));
+    return;
+  }
+  if(wrap)setWrap('<p style="font-size:13px;color:#6b7280">Memuat kode dari server...</p>');
+  try{
+    const list=(await window.MHDCloud.adminLisensiList()).map(_mhdLicNormalize);
+    _mhdTerbitSave(list);
+    _terbitPaint('');
+    const cnt=document.getElementById('terbitCount');
+    if(cnt)cnt.textContent='Kode di server: '+list.length;
+  }catch(e){
+    if(e && e.status===401){
+      setWrap('<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px">'+
+        '<p style="font-size:13px;color:#7f1d1d;margin:0 0 8px"><b>Sesi admin berakhir.</b> Silakan login ulang sebagai admin.</p>'+
+        '<button class="btn btn-primary" style="font-size:12px" onclick="adminRelogin()">Login Admin</button></div>');
+      return;
+    }
+    setWrap('<p style="font-size:13px;color:#b45309">Gagal menghubungi server ('+_esc(e.message||e)+'). Menampilkan cache perangkat ini.</p>'+_terbitListHTML(_mhdTerbitList()));
+  }
+}
+function adminRelogin(){
+  localStorage.removeItem('loggedIn');
+  localStorage.removeItem('role');
+  if(window.MHDCloud&&window.MHDCloud.setAdminToken)window.MHDCloud.setAdminToken('');
+  location.reload();
+}
+
+// ---- aksi admin ----
+async function terbitSimpan(){
   _terbitClearErr();
   const nama=(document.getElementById('terbitNama').value||'').trim();
   const alamat=(document.getElementById('terbitAlamat').value||'').trim();
-  let kode=(document.getElementById('terbitKodeInput').value||'').trim().toUpperCase();
-  const berlaku=(document.getElementById('terbitBerlaku').value||'').trim()||_addDaysISO(MHD_TERBIT_DAYS);
+  const kode=(document.getElementById('terbitKodeInput').value||'').trim().toUpperCase();
+  const berlaku=(document.getElementById('terbitBerlaku').value||'').trim();
   if(!nama){_terbitErr('Nama madrasah wajib diisi');return;}
-  if(!kode)kode=_genKode(nama);
-  const taken=_mhdAllLisensi().map(x=>x.kode);
-  if(taken.indexOf(kode)!==-1){_terbitErr('Kode "'+kode+'" sudah dipakai. Gunakan kode lain.');return;}
-  const today=new Date().toISOString().slice(0,10);
-  const list=_mhdTerbitList();
-  list.unshift({kode:kode,madrasah:nama,alamat:alamat,berlaku:berlaku,tier:'full',terbitTanggal:today,aktivasiTanggal:'',status:'aktif'});
-  _mhdTerbitSave(list);
-  toast('Kode diterbitkan: '+kode);
-  render();
+  if(!window.MHDCloud||!window.MHDCloud.enabled||!window.MHDCloud.adminLisensiCreate){_terbitErr('Server tidak tersedia. Kode hanya bisa diterbitkan saat online.');return;}
+  const btn=document.getElementById('terbitBtn');
+  if(btn){btn.disabled=true;btn.textContent='Menyimpan...';}
+  try{
+    const lis=await window.MHDCloud.adminLisensiCreate({kode:kode,madrasah:nama,alamat:alamat,berlaku:berlaku||_addDaysISO(MHD_TERBIT_DAYS),tier:'full'});
+    const nk=(document.getElementById('terbitNama'));if(nk)nk.value='';
+    const al=(document.getElementById('terbitAlamat'));if(al)al.value='';
+    const kk=(document.getElementById('terbitKodeInput'));if(kk){kk.value='';kk.placeholder=_genKode('');}
+    toast('Kode diterbitkan: '+(lis&&lis.kode||kode));
+    await terbitLoad();
+  }catch(e){
+    _terbitErr(e.message||'Gagal menerbitkan kode');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='\u{1F511} Terbitkan Kode';}
+  }
 }
-function terbitToggle(i){const list=_mhdTerbitList();if(!list[i])return;list[i].status=(list[i].status==='nonaktif')?'aktif':'nonaktif';_mhdTerbitSave(list);render();toast('Status diubah');}
-function terbitHapus(i){const list=_mhdTerbitList();if(!list[i])return;if(!confirm('Hapus kode '+list[i].kode+'?'))return;const k=list[i].kode;list.splice(i,1);_mhdTerbitSave(list);render();toast('Kode dihapus: '+k);}
+async function terbitToggle(i){
+  const list=_mhdTerbitList();const x=list[i];if(!x)return;
+  if(!window.MHDCloud||!window.MHDCloud.adminLisensiUpdate){toast('Butuh koneksi internet','error');return;}
+  const status=x.status==='nonaktif'?'aktif':'nonaktif';
+  try{
+    await window.MHDCloud.adminLisensiUpdate({kode:x.kode,status:status});
+    x.status=status;_mhdTerbitSave(list);
+    toast(status==='nonaktif'?'Kode dinonaktifkan: '+x.kode:'Kode diaktifkan: '+x.kode);
+    await terbitLoad();
+  }catch(e){toast('Gagal mengubah status: '+(e.message||e),'error');}
+}
+async function terbitHapus(i){
+  const list=_mhdTerbitList();const x=list[i];if(!x)return;
+  if(!confirm('Hapus kode '+x.kode+' dari server?\nMadrasah yang memakai kode ini tidak bisa aktivasi ulang.'))return;
+  if(!window.MHDCloud||!window.MHDCloud.adminLisensiDelete){toast('Butuh koneksi internet','error');return;}
+  try{
+    await window.MHDCloud.adminLisensiDelete(x.kode);
+    list.splice(i,1);_mhdTerbitSave(list);
+    toast('Kode dihapus: '+x.kode);
+    await terbitLoad();
+  }catch(e){toast('Gagal menghapus: '+(e.message||e),'error');}
+}
 function terbitLihat(i){
   const list=_mhdTerbitList();if(!list[i])return;const x=list[i];
   const html='<div class="overlay" onclick="if(event.target===this)this.remove()"><div class="modal">'+
@@ -2448,7 +2565,7 @@ function terbitLihat(i){
     '<p style="font-size:13px;margin:4px 0"><b>Berlaku s/d:</b> '+_esc(x.berlaku||'-')+'</p>'+
     '<p style="font-size:13px;margin:4px 0"><b>Tier:</b> '+_esc(String(x.tier||'full').toUpperCase())+'</p>'+
     '<p style="font-size:13px;margin:4px 0"><b>Terbit:</b> '+_esc(x.terbitTanggal||'-')+'</p>'+
-    '<p style="font-size:13px;margin:4px 0"><b>Aktivasi:</b> '+_esc(x.aktivasiTanggal||'belum')+'</p>'+
+    '<p style="font-size:13px;margin:4px 0"><b>Aktivasi pertama:</b> '+_esc(x.aktivasiTanggal||'belum')+'</p>'+
     '<p style="font-size:13px;margin:4px 0"><b>Status:</b> '+_esc(x.status||'aktif')+'</p>'+
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">'+
       '<button class="btn btn-secondary" onclick="_copyText(\''+x.kode+'\')">Salin Kode</button>'+
@@ -2468,30 +2585,11 @@ function terbitExportCSV(){
 }
 function renderTerbitKode(){
   if(!isAdminMode()){return '<div class="card"><h3 style="margin:0 0 8px;color:#15803d">\u{1F511} Terbitkan Kode Aktivasi</h3><p style="font-size:13px;color:#6b7280">Halaman ini hanya untuk akun admin. Silakan logout lalu login sebagai admin.</p></div>';}
-  const list=_mhdTerbitList();
-  const today=new Date().toISOString().slice(0,10);
   const defBerlaku=_addDaysISO(MHD_TERBIT_DAYS);
   const kodeOtomatis=_genKode('');
-  const rows=list.map((x,i)=>{
-    const exp=x.berlaku && x.berlaku<today;
-    const st=x.status==='nonaktif'?'<span style="color:#dc2626;font-weight:600">Nonaktif</span>':(exp?'<span style="color:#b45309;font-weight:600">Kadaluarsa</span>':'<span style="color:#16a34a;font-weight:600">Aktif</span>');
-    return '<tr>'+
-      '<td style="font-family:monospace;font-size:12px">'+_esc(x.kode)+'</td>'+
-      '<td>'+_esc(x.madrasah)+'</td>'+
-      '<td style="font-size:12px">'+_esc(x.berlaku||'-')+'</td>'+
-      '<td style="font-size:12px">'+_esc(String(x.tier||'full').toUpperCase())+'</td>'+
-      '<td style="font-size:12px">'+_esc(x.aktivasiTanggal||'-')+'</td>'+
-      '<td style="font-size:12px">'+st+'</td>'+
-      '<td style="white-space:nowrap">'+
-        '<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px" onclick="_copyText(\''+x.kode+'\')">Salin</button> '+
-        '<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px" onclick="terbitLihat('+i+')">Detail</button> '+
-        '<button class="btn '+(x.status==='nonaktif'?'btn-primary':'btn-danger')+'" style="padding:4px 8px;font-size:11px" onclick="terbitToggle('+i+')">'+(x.status==='nonaktif'?'Aktifkan':'Nonaktifkan')+'</button> '+
-        '<button class="btn btn-danger" style="padding:4px 8px;font-size:11px" onclick="terbitHapus('+i+')">Hapus</button>'+
-      '</td></tr>';
-  }).join('');
   return '<div class="card">'+
     '<h3 style="margin:0 0 6px;color:#15803d">\u{1F511} Terbitkan Kode Aktivasi / Lisensi</h3>'+
-    '<p style="font-size:12px;color:#6b7280;margin:0 0 14px">Buat kode aktivasi untuk madrasah. Kode langsung aktif di perangkat ini (mode offline). Supaya kode berlaku di <b>semua device</b>, kode juga harus ditambahkan ke <code>LISENSI_DB</code> lalu di-deploy.</p>'+
+    '<p style="font-size:12px;color:#6b7280;margin:0 0 14px">Kode disimpan di server, jadi langsung bisa dipakai madrasah di perangkat mana pun. Kode juga bisa dinonaktifkan kapan saja.</p>'+
     '<label style="font-size:13px;color:#374151">Nama Madrasah Lengkap</label>'+
     '<input id="terbitNama" placeholder="Contoh: MI Nurul Karim Banyuwangi" oninput="var p=document.getElementById(\'terbitKodeInput\');if(!p.value)p.placeholder=_genKode(this.value)" style="margin-bottom:10px">'+
     '<label style="font-size:13px;color:#374151">Alamat Madrasah</label>'+
@@ -2505,17 +2603,14 @@ function renderTerbitKode(){
       '<button class="btn btn-secondary" style="font-size:12px" onclick="terbitSetBerlaku(365)">+1 Tahun</button>'+
       '<button class="btn btn-secondary" style="font-size:12px" onclick="terbitSetBerlaku(1095)">+3 Tahun</button>'+
     '</div>'+
-    '<button class="btn btn-primary" onclick="terbitSimpan()">\u{1F511} Terbitkan Kode</button> '+
-    (list.length?'<button class="btn btn-secondary" onclick="terbitExportCSV()">\u2B07\uFE0F Export CSV</button>':'')+
+    '<button class="btn btn-primary" id="terbitBtn" onclick="terbitSimpan()">\u{1F511} Terbitkan Kode</button> '+
+    '<button class="btn btn-secondary" onclick="terbitLoad()">\u21BB Muat Ulang</button> '+
+    '<button class="btn btn-secondary" onclick="terbitExportCSV()">\u2B07\uFE0F Export CSV</button>'+
     '<p id="terbitError" style="color:#dc2626;font-size:12px;margin-top:10px;display:none"></p>'+
   '</div>'+
   '<div class="card" style="margin-top:16px">'+
-    '<h3 style="margin:0 0 10px;font-size:15px;color:#15803d">Daftar Kode Terbitan (perangkat ini): '+list.length+'</h3>'+
-    (list.length?('<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'+
-      '<thead><tr style="text-align:left;color:#6b7280;font-size:12px">'+
-      '<th style="padding:6px">Kode</th><th style="padding:6px">Madrasah</th><th style="padding:6px">Berlaku</th><th style="padding:6px">Tier</th><th style="padding:6px">Aktivasi</th><th style="padding:6px">Status</th><th style="padding:6px">Aksi</th></tr></thead>'+
-      '<tbody>'+rows+'</tbody></table></div>')
-      :'<p style="font-size:13px;color:#6b7280">Belum ada kode yang diterbitkan dari perangkat ini.</p>')+
+    '<h3 style="margin:0 0 10px;font-size:15px;color:#15803d">Daftar Kode <span id="terbitCount" style="font-weight:400;color:#6b7280;font-size:13px"></span></h3>'+
+    '<div id="terbitListWrap"><p style="font-size:13px;color:#6b7280">Memuat kode dari server...</p></div>'+
   '</div>';
 }
 
@@ -2534,21 +2629,46 @@ function initApp(){
 }
 
 // ===== BOOT =====
-function boot(){
+async function boot(){
   initData();
   var lisensi = _DBraw.get('lisensi');
-  // Sesi admin masih aktif → langsung masuk (menu admin muncul)
+
+  // ---- Admin: sesi dicek ke server, bukan hanya localStorage ----
   if(localStorage.getItem('loggedIn')==='true' && localStorage.getItem('role')==='admin'){
-    loggedIn=true;
-    ensureAdminLisensi();
-    initApp();
+    var sesi = null, offline = false;
+    try{
+      if(window.MHDCloud && window.MHDCloud.adminSession){
+        sesi = await window.MHDCloud.adminSession();
+        offline = !!(sesi && sesi.offline);
+      } else { offline = true; }
+    }catch(e){ offline = true; }
+    if(sesi && !offline){
+      loggedIn=true;
+      ensureAdminLisensi();
+      initApp();
+      return;
+    }
+    if(offline && localStorage.getItem('mhd_login_ok')){
+      // Tidak bisa cek ke server: izinkan pakai sesi terakhir (mode offline)
+      loggedIn=true;
+      ensureAdminLisensi();
+      initApp();
+      return;
+    }
+    // Sesi tidak valid di server → minta login ulang
+    localStorage.removeItem('loggedIn');
+    localStorage.removeItem('role');
+    localStorage.removeItem('mhd_login_ok');
+    showAdminLogin();
     return;
   }
+
   // Link lama ?mode=admin, atau perangkat admin yang sudah logout → layar login admin
   if(_wantAdminLogin() || (lisensi && lisensi.kode==='ADMIN-MASTER')){
     showAdminLogin();
     return;
   }
+
   // User madrasah baru logout: jangan auto-login lagi; tampilkan layar masuk kembali.
   if(localStorage.getItem('mhd_logged_out')==='1' && lisensi){
     var ws=document.getElementById('welcomeScreen');
@@ -2561,25 +2681,38 @@ function boot(){
     document.getElementById('loginScreen').style.display='none';
     return;
   }
+
+  // ---- Madrasah: status kode dicek ke server (bisa dinonaktifkan admin) ----
+  if(lisensi && lisensi.kode && lisensi.kode!=='TRIAL-LOCAL' && window.MHDCloud && window.MHDCloud.statusLisensi){
+    var st = await window.MHDCloud.statusLisensi(lisensi.kode);
+    if(st === null){
+      _DBraw.del('lisensi');
+      lisensi = null;
+      showAktivasi('Kode aktivasi ini sudah tidak berlaku di server. Hubungi Subariyanto untuk kode baru.');
+      return;
+    }
+    if(st === 'nonaktif'){
+      showAktivasi('Kode aktivasi ini dinonaktifkan oleh admin. Hubungi Subariyanto.');
+      return;
+    }
+  }
+
   // User madrasah: cek apakah sudah ada lisensi valid
   if(lisensi && lisensi.tier==='full'){
     var now = new Date().toISOString().slice(0,10);
     if(lisensi.berlaku >= now){
-      // Lisensi valid → auto-login sebagai madrasah, langsung dashboard
       localStorage.setItem('loggedIn','true');
       localStorage.setItem('role','madrasah');
       loggedIn=true;
       initApp();
       return;
     } else {
-      // Lisensi expired → hapus, tampilkan aktivasi
       _DBraw.del('lisensi');
       showAktivasi('Lisensi sudah kadaluarsa. Hubungi Subariyanto untuk kode baru.');
       return;
     }
   }
   if(lisensi && lisensi.tier==='trial'){
-    // Trial: auto-login sebagai madrasah, langsung dashboard
     localStorage.setItem('loggedIn','true');
     localStorage.setItem('role','madrasah');
     loggedIn=true;

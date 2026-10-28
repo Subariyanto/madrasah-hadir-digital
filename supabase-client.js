@@ -71,12 +71,38 @@
     return [];
   }
 
+  // ===== Lisensi: sumber utama = server (VPS) =====
+  // Server menyimpan semua kode aktivasi, jadi kode yang diterbitkan admin
+  // langsung bisa dipakai madrasah di perangkat mana pun.
+  MHD.cekLisensi = async function(kode, catatAktivasi){
+    const res = await rest('/lisensi/' + (catatAktivasi ? 'aktivasi' : 'cek'), {
+      method: 'POST', body: { kode: tenantOf(kode) }
+    });
+    return (res && res.lisensi) || null;
+  };
+
   // ===== Madrasah lookup by kode aktivasi =====
-  // Karena cloud di-key berdasarkan kode aktivasi, cukup validasi kode + bangun
-  // objek "madrasah" sintetis. (Data asli disimpan di tenant yang sama.)
+  // Server jadi acuan. Kalau jaringan gagal, fallback ke daftar kode lokal
+  // (LISENSI_DB + kode terbitan lama) supaya madrasah tetap bisa aktivasi offline.
   MHD.findMadrasahByKode = async function(kode){
     const k = tenantOf(kode);
     if(!k) return null;
+    try{
+      const lis = await MHD.cekLisensi(k, true);
+      if(!lis) return null;                       // tidak terdaftar / sudah dihapus
+      return {
+        id: lis.kode,
+        kode_aktivasi: lis.kode,
+        nama: lis.madrasah,
+        alamat: lis.alamat || '',
+        berlaku: lis.berlaku,
+        tier: lis.tier || 'full',
+        status: lis.status || 'aktif',
+        _sumber: 'server'
+      };
+    }catch(e){
+      console.warn('[MHDCloud] cek lisensi ke server gagal, pakai daftar lokal:', e.message);
+    }
     const list = localCodes();
     const found = list.find(function(l){ return tenantOf(l.kode) === k; });
     if(list.length && !found) return null;   // kode tidak dikenal
@@ -86,9 +112,86 @@
       nama: (found && found.madrasah) || 'Madrasah',
       alamat: (found && found.alamat) || '',
       berlaku: (found && found.berlaku) || '2027-12-31',
-      tier: 'full'
+      tier: 'full',
+      status: 'aktif',
+      _sumber: 'lokal'
     };
   };
+
+  // ===== Admin: login & token disimpan sebagai token sesi (bukan password) =====
+  const TOKEN_KEY = 'mhd_admin_token';
+  MHD.getAdminToken = function(){ try{ return localStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } };
+  MHD.setAdminToken = function(t){ try{ t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); }catch(e){} };
+
+  async function adminRest(path, options){
+    options = options || {};
+    const res = await fetch(SYNC_URL + path, {
+      method: options.method || 'GET',
+      headers: Object.assign({
+        'x-mhd-key': SYNC_KEY,
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + MHD.getAdminToken()
+      }, options.headers || {}),
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      cache: 'no-store'
+    });
+    let payload = null;
+    try{ payload = await res.json(); }catch(e){}
+    if(res.status === 401){ MHD.setAdminToken(''); }
+    if(!res.ok || (payload && payload.ok === false)){
+      const err = new Error((payload && payload.error) || ('HTTP ' + res.status));
+      err.status = res.status;
+      throw err;
+    }
+    return payload;
+  }
+
+  MHD.adminLogin = async function(username, password){
+    const res = await rest('/admin/login', { method:'POST', body:{ username:username, password:password } });
+    MHD.setAdminToken(res.token);
+    return res;
+  };
+  // null = sesi tidak valid, { offline:true } = tidak bisa cek (jaringan)
+  MHD.adminSession = async function(){
+    if(!MHD.getAdminToken()) return null;
+    try{ return await adminRest('/admin/session'); }
+    catch(e){ return e && e.status === 401 ? null : { offline:true }; }
+  };
+  MHD.adminLogout = async function(){
+    try{ await adminRest('/admin/logout', { method:'POST' }); }catch(e){}
+    MHD.setAdminToken('');
+  };
+  MHD.adminUbahPassword = async function(password){
+    await adminRest('/admin/password', { method:'POST', body:{ password:password } });
+    MHD.setAdminToken('');
+  };
+  MHD.adminLisensiList = async function(){
+    const res = await adminRest('/admin/lisensi');
+    return (res && res.list) || [];
+  };
+  MHD.adminLisensiCreate = async function(data){
+    const res = await adminRest('/admin/lisensi', { method:'POST', body:data });
+    return res.lisensi;
+  };
+  MHD.adminLisensiUpdate = async function(data){
+    const res = await adminRest('/admin/lisensi', { method:'PATCH', body:data });
+    return res.lisensi;
+  };
+  MHD.adminLisensiDelete = async function(kode){
+    await adminRest('/admin/lisensi', { method:'DELETE', body:{ kode:kode } });
+    return true;
+  };
+
+  // ===== Cek status lisensi perangkat (dipakai saat aplikasi dibuka) =====
+  // Hasil: 'aktif' | 'nonaktif' | 'kadaluarsa' | null (tidak terdaftar) | 'offline'
+  MHD.statusLisensi = async function(kode){
+    try{
+      const lis = await MHD.cekLisensi(kode, false);
+      if(!lis) return null;
+      return lis.status || 'aktif';
+    }catch(e){ return 'offline'; }
+  };
+
 
   // ===== Aktivasi =====
   // Di model KV, madrasah otomatis "ada" begitu kode valid — tidak perlu insert.
