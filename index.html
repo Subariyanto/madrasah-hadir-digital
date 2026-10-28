@@ -306,7 +306,7 @@ function _mhdApplyCloud(d){
     if(d.kelas&&d.kelas.length)_DBraw.set('kelas',mergeUnique(_DBraw.get('kelas'),d.kelas.map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})),x=>'nama:'+String(x.nama||'').trim().toLowerCase()));
     const cloudExtras=d.settings&&d.settings.extras||{}, photos=cloudExtras.studentPhotos||{};
     if(d.siswa&&d.siswa.length)_DBraw.set('siswa',mergeUnique(_DBraw.get('siswa'),d.siswa.map(s=>{var nisn=String(s.nisn||s.nis||'').trim();var nama=String(s.nama||'').trim().toLowerCase();var photo=s.photo||photos['nisn:'+nisn]||photos['name:'+nama]||photos[s.id]||undefined;return{id:s.id,nama:s.nama,nisn:nisn,kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||'',photo:photo};}),x=>x.nisn?'nisn:'+String(x.nisn).trim():'nama:'+String(x.nama||'').trim().toLowerCase()));
-    if(d.guru&&d.guru.length)_DBraw.set('teachers',mergeUnique(_DBraw.get('teachers'),d.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})),x=>x.nip?'nip:'+String(x.nip).trim():'nama:'+String(x.nama||'').trim().toLowerCase()));
+    if(d.guru&&d.guru.length)_DBraw.set('teachers',mergeUnique(_DBraw.get('teachers'),d.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||'',photo:g.photo||''})),x=>x.nip?'nip:'+String(x.nip).trim():'nama:'+String(x.nama||'').trim().toLowerCase()));
     if(d.presensi&&d.presensi.length)_DBraw.set('presensi',mergeUnique(_DBraw.get('presensi'),d.presensi.map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu||'',keterangan:p.keterangan||''})),x=>'id:'+x.id));
     if(d.presensiGuru&&d.presensiGuru.length)_DBraw.set('teacherAttendance',mergeUnique(_DBraw.get('teacherAttendance'),d.presensiGuru.map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})),x=>'id:'+x.id));
     if(d.settings){const extras=d.settings.extras||{};_DBraw.set('settings',Object.assign({},_DBraw.get('settings')||{},extras,{jamMasuk:d.settings.jam_masuk||extras.jamMasuk,batasTerlambat:d.settings.batas_terlambat||extras.batasTerlambat,jamPulang:d.settings.jam_pulang||extras.jamPulang,tahunAjaran:d.settings.tahun_ajaran||extras.tahunAjaran,semester:d.settings.semester||extras.semester}));}
@@ -485,7 +485,7 @@ async function doAktivasi(){
       const data = await window.MHDCloud.pullAll(_DBraw.get('cloud_madrasah_id'));
       if(data.kelas && data.kelas.length) _DBraw.set('kelas', data.kelas.map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})));
       if(data.siswa && data.siswa.length) _DBraw.set('siswa', data.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||'',photo:_mhdCloudPhoto(s,data.settings)})));
-      if(data.guru && data.guru.length) _DBraw.set('teachers', data.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})));
+      if(data.guru && data.guru.length) _DBraw.set('teachers', data.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||'',photo:g.photo||''})));
       if(data.presensi && data.presensi.length) _DBraw.set('presensi', data.presensi.map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||p.waktu||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
       if(data.presensiGuru && data.presensiGuru.length) _DBraw.set('teacherAttendance', data.presensiGuru.map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
     }catch(e){console.warn('Auto-pull gagal:',e);}
@@ -1426,7 +1426,9 @@ function generateQRCards(){
 //  Besar  = 80 x 120 mm
 // Kolom foto berasio 3:4 (seperti pas foto), ukurannya menyesuaikan kartu.
 // Teks, jarak, dan QR diskalakan per ukuran (z) supaya semuanya muat.
-function generateQRCardsVertical(c,ss,ks,x,size){
+function generateQRCardsVertical(c,ss,ks,x,size,opt){
+ opt=opt||{};
+ const judul=opt.judul||'KARTU PELAJAR',pfx=opt.prefix||'qr-',infoFn=opt.info||(s=>{const k=ks.find(a=>a.id===s.kelas);return 'NIS: '+_esc(s.nisn||'-')+' &middot; Kelas: '+_esc(k?k.nama:'-');});
  const cfg={
   small: {W:54,H:86, z:.82,qr:18,hdTop:5,  fw:22,fh:29.3},
   medium:{W:65,H:100,z:1,  qr:21,hdTop:6.2,fw:26,fh:34.7},
@@ -1435,7 +1437,6 @@ function generateQRCardsVertical(c,ss,ks,x,size){
  const W=cfg.W,H=cfg.H,z=cfg.z,mm=v=>(v*z).toFixed(2)+'mm',e=_esc;
  const FOTO_W=cfg.fw,FOTO_H=cfg.fh; // mm, rasio 3:4 seperti pas foto, disesuaikan per ukuran kartu
  c.innerHTML=ss.map(s=>{
-  const k=ks.find(a=>a.id===s.kelas);
   return '<div class="kartu-vertikal" style="position:relative;width:'+W+'mm;height:'+H+'mm;overflow:hidden;border-radius:'+mm(3)+';background:#fff;color:#073c57;font-family:Arial,sans-serif;box-shadow:0 2px 9px #0003;break-inside:avoid;page-break-inside:avoid;display:flex;flex-direction:column;align-items:center;box-sizing:border-box">'+
    // header + lubang tali kalung
    '<div style="width:100%;background:#064766;color:#fff;text-align:left;padding:'+cfg.hdTop+'mm '+mm(3)+' '+mm(2)+';box-sizing:border-box;position:relative;flex:none">'+
@@ -1450,7 +1451,7 @@ function generateQRCardsVertical(c,ss,ks,x,size){
      '</div>'+
     '</div>'+
    '</div>'+
-   '<div style="font-size:'+mm(2.6)+';font-weight:900;letter-spacing:.04em;margin-top:'+mm(2)+';flex:none">KARTU PELAJAR</div>'+
+   '<div style="font-size:'+mm(2.6)+';font-weight:900;letter-spacing:.04em;margin-top:'+mm(2)+';flex:none">'+e(judul)+'</div>'+
    // foto 3x4 cm
    '<div style="width:'+FOTO_W+'mm;height:'+FOTO_H+'mm;box-sizing:content-box;margin-top:'+mm(1.6)+';border-radius:'+mm(2)+';overflow:hidden;background:#dbeafe;border:0.6mm solid #f9c900;flex:none">'+
     (s.photo?'<img src="'+s.photo+'" alt="Foto '+e(s.nama)+'" style="width:100%;height:100%;object-fit:cover;display:block">':'<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:16mm">👤</div>')+
@@ -1458,17 +1459,17 @@ function generateQRCardsVertical(c,ss,ks,x,size){
    // identitas
    '<div style="text-align:center;padding:0 '+mm(3)+';margin-top:'+mm(1.6)+';width:100%;box-sizing:border-box;flex:none">'+
     '<div style="font-size:'+mm(3.2)+';font-weight:800;line-height:1.15;word-break:break-word">'+e(s.nama)+'</div>'+
-    '<div style="font-size:'+mm(2.2)+';margin-top:'+mm(0.6)+'">NIS: '+e(s.nisn||'-')+' &middot; Kelas: '+e(k?k.nama:'-')+'</div>'+
+    '<div style="font-size:'+mm(2.2)+';margin-top:'+mm(0.6)+';line-height:1.25">'+infoFn(s)+'</div>'+
    '</div>'+
    // QR
-   '<div id="qr-'+s.id+'" style="margin-top:auto;margin-bottom:'+mm(5.5)+';background:#fff;padding:'+mm(1)+';border:0.3mm solid #e5e7eb;border-radius:'+mm(1)+';flex:none;line-height:0"></div>'+
+   '<div id="'+pfx+s.id+'" style="margin-top:auto;margin-bottom:'+mm(5.5)+';background:#fff;padding:'+mm(1)+';border:0.3mm solid #e5e7eb;border-radius:'+mm(1)+';flex:none;line-height:0"></div>'+
    '<div style="position:absolute;left:0;right:0;bottom:0;height:'+mm(4)+';background:linear-gradient(90deg,#064766 0 60%,#f9c900 60%)"></div>'+
   '</div>';
  }).join('');
  // QR dibuat dalam px (1mm = 3.78px CSS), lalu dikunci ke ukuran mm agar akurat saat cetak
  const qrPx=Math.round(cfg.qr*3.78);
  ss.forEach(s=>{
-  const el=document.getElementById('qr-'+s.id);
+  const el=document.getElementById(pfx+s.id);
   new QRCode(el,{text:s.id,width:qrPx,height:qrPx});
   el.querySelectorAll('img,canvas').forEach(n=>{n.style.width=cfg.qr+'mm';n.style.height=cfg.qr+'mm';});
  });
@@ -2102,7 +2103,7 @@ async function cloudPullAll(){
     const data = await window.MHDCloud.pullAll(m.id);
     if(data.kelas) _DBraw.set('kelas', data.kelas.map(k=>({id:k.id,nama:k.nama,waliKelas:k.wali_kelas||''})));
     if(data.siswa) _DBraw.set('siswa', data.siswa.map(s=>({id:s.id,nama:s.nama,nisn:s.nisn||'',kelas:s.kelas_id||'',jk:s.jk||'',tglLahir:s.tgl_lahir||'',alamat:s.alamat||'',namaOrtu:s.nama_ortu||'',noWaOrtu:s.no_wa_ortu||'',photo:_mhdCloudPhoto(s,data.settings)})));
-    if(data.guru) _DBraw.set('teachers', data.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||''})));
+    if(data.guru) _DBraw.set('teachers', data.guru.map(g=>({id:g.id,nama:g.nama,nip:g.nip||'',jabatan:g.jabatan||'',noWa:g.no_wa||'',photo:g.photo||''})));
     if(data.presensi) _DBraw.set('presensi', data.presensi.map(p=>({id:p.id,siswaId:p.siswa_id,siswa:p.siswa_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||p.waktu||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
     if(data.presensiGuru) _DBraw.set('teacherAttendance', data.presensiGuru.map(p=>({id:p.id,guruId:p.guru_id,tanggal:p.tanggal,status:p.status,waktuMasuk:p.waktu_masuk||'',waktuPulang:p.waktu_pulang||'',keterangan:p.keterangan||''})));
     toast('Data berhasil ditarik dari cloud');
@@ -2282,6 +2283,10 @@ function showAddGuru(editId){
   '<input id="fGJabatan" value="'+(t?t.jabatan||'':'')+'" style="margin-bottom:10px">'+
   '<label style="font-size:13px;color:#374151">No HP/WA</label>'+
   '<input id="fGHp" value="'+(t?t.noHp||'':'')+'" style="margin-bottom:10px">'+
+  '<label style="font-size:13px;color:#374151" for="fGPhoto">Foto Guru (untuk kartu)</label>'+
+  (t&&t.photo?'<div style="margin:4px 0 6px"><img src="'+t.photo+'" alt="Foto '+_esc(t.nama)+'" style="width:60px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #d1d5db"></div>':'')+
+  '<input type="file" id="fGPhoto" accept="image/*" style="margin-bottom:10px">'+
+  '<input type="hidden" id="fGPhotoOld" value="'+(t&&t.photo?t.photo:'')+'">'+
   '<label style="font-size:13px;color:#374151"><input type="checkbox" id="fGAktif" '+(t?(t.statusAktif?'checked':''):'checked')+'> Status Aktif</label>'+
   '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">'+
     '<button class="btn btn-secondary" onclick="this.closest(\'.overlay\').remove()">Batal</button>'+
@@ -2290,16 +2295,19 @@ function showAddGuru(editId){
   document.body.insertAdjacentHTML('beforeend',h);
 }
 function editGuru(id){showAddGuru(id)}
-function saveGuru(editId){
+async function saveGuru(editId){
   const nama=document.getElementById('fGNama').value.trim();
   const nip=document.getElementById('fGNip').value.trim();
   const jabatan=document.getElementById('fGJabatan').value.trim();
   const noHp=document.getElementById('fGHp').value.trim();
   const statusAktif=document.getElementById('fGAktif').checked;
   if(!nama){toast('Nama guru harus diisi','error');return}
+  let photo=(document.getElementById('fGPhotoOld')||{}).value||'';
+  const file=document.getElementById('fGPhoto')&&document.getElementById('fGPhoto').files[0];
+  if(file){try{photo=await imageFileToDataURL(file,360,480)}catch(e){toast('Foto gagal diproses','error');return}}
   let teachers=DB.get('teachers')||[];
-  if(editId){teachers=teachers.map(t=>t.id===editId?{...t,nama,nip,jabatan,noHp,statusAktif}:t)}
-  else{teachers.push({id:'g'+Date.now(),nama,nip,jabatan,noHp,statusAktif})}
+  if(editId){teachers=teachers.map(t=>t.id===editId?{...t,nama,nip,jabatan,noHp,statusAktif,photo}:t)}
+  else{teachers.push({id:'g'+Date.now(),nama,nip,jabatan,noHp,statusAktif,photo})}
   DB.set('teachers',teachers);
   document.querySelector('.overlay').remove();render();
   toast(editId?'Data guru diupdate':'Guru berhasil ditambahkan');
@@ -2438,6 +2446,7 @@ function renderKartuGuru(){
   '<div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
     '<select id="kartuGuruSize" style="max-width:150px"><option value="small">Kecil</option><option value="medium" selected>Sedang</option><option value="large">Besar</option></select>'+
     '<select id="kartuGuruMode" style="max-width:180px"><option value="full">Kartu Lengkap</option><option value="qronly">QR Saja</option></select>'+
+    '<select id="kartuGuruModel" onchange="generateQRGuru()" style="max-width:200px"><option value="horizontal">Model Standar</option><option value="vertical">Model Vertikal (Kalung)</option></select>'+
     '<button class="btn btn-primary" onclick="generateQRGuru()">\u{1F504} Generate</button>'+
     '<button class="btn btn-secondary" onclick="window.print()">\u{1F5A8}\uFE0F Cetak</button>'+
   '</div></div>'+
@@ -2452,6 +2461,14 @@ function generateQRGuru(){
   const qrSize=size==='small'?80:size==='large'?150:100;
   if(teachers.length===0){container.innerHTML='<p style="color:#6b7280;font-size:13px">Tidak ada guru.</p>';return}
   const settings=DB.get('settings')||{};
+  const model=document.getElementById('kartuGuruModel')?document.getElementById('kartuGuruModel').value:'horizontal';
+  if(mode!=='qronly'&&model==='vertical'){
+    container.style.display='flex';container.style.flexWrap='wrap';container.style.gap='14px';container.style.alignItems='flex-start';
+    generateQRCardsVertical(container,teachers,[],settings,size,{judul:'KARTU GURU',prefix:'qrg-',
+      info:t=>'NIP: '+_esc(t.nip||'-')+(t.jabatan?'<br>'+_esc(t.jabatan):'')});
+    return;
+  }
+  container.style.display='grid';container.style.flexWrap='';container.style.alignItems='';
   container.innerHTML=teachers.map(t=>{
     if(mode==='qronly'){
       return '<div style="border:1px solid #d1d5db;border-radius:8px;padding:12px;text-align:center;background:#fff">'+

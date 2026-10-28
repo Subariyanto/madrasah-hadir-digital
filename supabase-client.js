@@ -223,7 +223,7 @@
     };
   }
   function mapGuru(g){
-    return { id:g.id, nama:g.nama, nip:g.nip || null, jabatan:g.jabatan || null, no_wa:g.noWa || g.no_wa || null };
+    return { id:g.id, nama:g.nama, nip:g.nip || null, jabatan:g.jabatan || null, no_wa:g.noWa || g.no_wa || null, photo:g.photo || null };
   }
   function mapPresensi(p){
     const sid = p.siswa || p.siswaId || p.siswa_id;
