@@ -1423,42 +1423,50 @@ function generateQRCards(){
 //  Kecil  = 54 x 86 mm  (ukuran ID card standar CR80)
 //  Sedang = 65 x 100 mm
 //  Besar  = 80 x 120 mm
+// Kolom foto selalu 30 x 40 mm (pas foto 3x4 cm) di semua ukuran.
+// QR diletakkan di samping foto supaya foto 3x4 muat di kartu kecil.
 function generateQRCardsVertical(c,ss,ks,x,size){
- const dim={small:[54,86,1],medium:[65,100,1.2],large:[80,120,1.45]}[size]||[65,100,1.2];
- const W=dim[0],H=dim[1],z=dim[2],mm=v=>(v*z).toFixed(2)+'mm',e=_esc;
+ const cfg={small:{W:54,H:86,z:.9,qr:17},medium:{W:65,H:100,z:1.1,qr:24},large:{W:80,H:120,z:1.3,qr:32}}[size]||{W:65,H:100,z:1.1,qr:24};
+ const W=cfg.W,H=cfg.H,z=cfg.z,mm=v=>(v*z).toFixed(2)+'mm',e=_esc;
+ const FOTO_W=30,FOTO_H=40; // mm, ukuran pas foto 3x4 cm (tidak ikut diskalakan)
  c.innerHTML=ss.map(s=>{
   const k=ks.find(a=>a.id===s.kelas);
-  return '<div class="kartu-vertikal" style="position:relative;width:'+W+'mm;height:'+H+'mm;overflow:hidden;border-radius:'+mm(3)+';background:#fff;color:#073c57;font-family:Arial,sans-serif;box-shadow:0 2px 9px #0003;break-inside:avoid;page-break-inside:avoid;display:flex;flex-direction:column;align-items:center">'+
+  return '<div class="kartu-vertikal" style="position:relative;width:'+W+'mm;height:'+H+'mm;overflow:hidden;border-radius:'+mm(3)+';background:#fff;color:#073c57;font-family:Arial,sans-serif;box-shadow:0 2px 9px #0003;break-inside:avoid;page-break-inside:avoid;display:flex;flex-direction:column;align-items:center;box-sizing:border-box">'+
    // header + lubang tali kalung
-   '<div style="width:100%;background:#064766;color:#fff;text-align:center;padding:'+mm(7)+' '+mm(3)+' '+mm(2.5)+';box-sizing:border-box;position:relative">'+
-    '<div style="position:absolute;top:'+mm(2)+';left:50%;transform:translateX(-50%);width:'+mm(12)+';height:'+mm(2.6)+';border-radius:'+mm(1.3)+';background:#fff;box-shadow:inset 0 0 0 0.3mm #9ca3af"></div>'+
+   '<div style="width:100%;background:#064766;color:#fff;text-align:center;padding:'+mm(6.5)+' '+mm(3)+' '+mm(2)+';box-sizing:border-box;position:relative;flex:none">'+
+    '<div style="position:absolute;top:'+mm(1.8)+';left:50%;transform:translateX(-50%);width:'+mm(12)+';height:'+mm(2.6)+';border-radius:'+mm(1.3)+';background:#fff;box-shadow:inset 0 0 0 0.3mm #9ca3af"></div>'+
     '<div style="display:flex;align-items:center;justify-content:center;gap:'+mm(2)+'">'+
-     (x.logo?'<img src="'+x.logo+'" alt="Logo madrasah" style="width:'+mm(9)+';height:'+mm(9)+';object-fit:contain">':'')+
+     (x.logo?'<img src="'+x.logo+'" alt="Logo madrasah" style="width:'+mm(8)+';height:'+mm(8)+';object-fit:contain">':'')+
      '<div style="text-align:center;line-height:1.15">'+
       '<div style="font-size:'+mm(2.1)+';font-weight:700">'+e(x.namaYayasan||'YAYASAN PENDIDIKAN ISLAM')+'</div>'+
       '<div style="font-size:'+mm(3)+';font-weight:800">'+e(x.namaSekolah||'MADRASAH')+'</div>'+
      '</div>'+
     '</div>'+
-    (x.alamat?'<div style="font-size:'+mm(1.7)+';opacity:.9;margin-top:'+mm(0.8)+';line-height:1.2">'+e(x.alamat)+'</div>':'')+
+    (x.alamat?'<div style="font-size:'+mm(1.7)+';opacity:.9;margin-top:'+mm(0.6)+';line-height:1.2">'+e(x.alamat)+'</div>':'')+
    '</div>'+
-   '<div style="font-size:'+mm(2.6)+';font-weight:900;letter-spacing:.04em;margin-top:'+mm(2.5)+'">KARTU PELAJAR</div>'+
-   // foto
-   '<div style="width:'+mm(20)+';height:'+mm(26)+';margin-top:'+mm(2)+';border-radius:'+mm(2)+';overflow:hidden;background:#dbeafe;border:0.6mm solid #f9c900">'+
-    (s.photo?'<img src="'+s.photo+'" alt="Foto '+e(s.nama)+'" style="width:100%;height:100%;object-fit:cover">':'<div style="font-size:'+mm(11)+';text-align:center;padding-top:'+mm(5)+'">👤</div>')+
+   '<div style="font-size:'+mm(2.6)+';font-weight:900;letter-spacing:.04em;margin-top:'+mm(1.8)+';flex:none">KARTU PELAJAR</div>'+
+   // foto 3x4 cm + QR di sampingnya
+   '<div style="display:flex;align-items:flex-end;justify-content:center;gap:'+mm(2.5)+';margin-top:'+mm(1.8)+';flex:none">'+
+    '<div style="width:'+FOTO_W+'mm;height:'+FOTO_H+'mm;box-sizing:content-box;border-radius:1mm;overflow:hidden;background:#dbeafe;border:0.5mm solid #f9c900;flex:none">'+
+     (s.photo?'<img src="'+s.photo+'" alt="Foto '+e(s.nama)+'" style="width:100%;height:100%;object-fit:cover;display:block">':'<div style="height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#64748b"><div style="font-size:14mm;line-height:1">👤</div><div style="font-size:2.2mm;margin-top:1mm">Foto 3x4</div></div>')+
+    '</div>'+
+    '<div id="qr-'+s.id+'" style="background:#fff;padding:0.8mm;border:0.3mm solid #e5e7eb;border-radius:1mm;flex:none;line-height:0"></div>'+
    '</div>'+
    // identitas
-   '<div style="text-align:center;padding:0 '+mm(3)+';margin-top:'+mm(2)+';width:100%;box-sizing:border-box">'+
+   '<div style="text-align:center;padding:0 '+mm(3)+';margin-top:'+mm(2)+';width:100%;box-sizing:border-box;flex:none">'+
     '<div style="font-size:'+mm(3.2)+';font-weight:800;line-height:1.15;word-break:break-word">'+e(s.nama)+'</div>'+
     '<div style="font-size:'+mm(2.2)+';margin-top:'+mm(0.8)+'">NIS: '+e(s.nisn||'-')+' &middot; Kelas: '+e(k?k.nama:'-')+'</div>'+
    '</div>'+
-   // QR
-   '<div id="qr-'+s.id+'" style="margin-top:auto;margin-bottom:'+mm(6)+';background:#fff;padding:'+mm(1)+';border:0.3mm solid #e5e7eb;border-radius:'+mm(1)+'"></div>'+
-   '<div style="position:absolute;left:0;right:0;bottom:0;height:'+mm(4)+';background:linear-gradient(90deg,#064766 0 60%,#f9c900 60%)"></div>'+
+   '<div style="position:absolute;left:0;right:0;bottom:0;height:'+mm(3.5)+';background:linear-gradient(90deg,#064766 0 60%,#f9c900 60%)"></div>'+
   '</div>';
  }).join('');
- // QR dalam px: 1mm ≈ 3.78px
- const qrPx=Math.round(22*z*3.78);
- ss.forEach(s=>new QRCode(document.getElementById('qr-'+s.id),{text:s.id,width:qrPx,height:qrPx}));
+ // QR dalam px (1mm = 3.78px CSS), lalu dipaksa ke ukuran mm agar akurat saat cetak
+ const qrPx=Math.round(cfg.qr*3.78);
+ ss.forEach(s=>{
+  const el=document.getElementById('qr-'+s.id);
+  new QRCode(el,{text:s.id,width:qrPx,height:qrPx});
+  el.querySelectorAll('img,canvas').forEach(n=>{n.style.width=cfg.qr+'mm';n.style.height=cfg.qr+'mm';});
+ });
 }
 // ===== REKAP PRESENSI =====
 function renderRekap(){
