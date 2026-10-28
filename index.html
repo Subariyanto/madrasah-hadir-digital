@@ -1424,16 +1424,16 @@ function generateQRCards(){
 //  Kecil  = 54 x 86 mm  (ukuran ID card standar CR80)
 //  Sedang = 65 x 100 mm
 //  Besar  = 80 x 120 mm
-// Kolom foto = pas foto 3x4 cm (30 x 40 mm) di semua ukuran.
+// Kolom foto berasio 3:4 (seperti pas foto), ukurannya menyesuaikan kartu.
 // Teks, jarak, dan QR diskalakan per ukuran (z) supaya semuanya muat.
 function generateQRCardsVertical(c,ss,ks,x,size){
  const cfg={
-  small: {W:54,H:86, z:.82,qr:11,hdTop:5},
-  medium:{W:65,H:100,z:1,  qr:16,hdTop:6.2},
-  large: {W:80,H:120,z:1.2,qr:24,hdTop:7}
- }[size]||{W:65,H:100,z:1,qr:18,hdTop:6.5};
+  small: {W:54,H:86, z:.82,qr:18,hdTop:5,  fw:22,fh:29.3},
+  medium:{W:65,H:100,z:1,  qr:21,hdTop:6.2,fw:26,fh:34.7},
+  large: {W:80,H:120,z:1.2,qr:27,hdTop:7,  fw:32,fh:42.7}
+ }[size]||{W:65,H:100,z:1,qr:21,hdTop:6.2,fw:26,fh:34.7};
  const W=cfg.W,H=cfg.H,z=cfg.z,mm=v=>(v*z).toFixed(2)+'mm',e=_esc;
- const FOTO_W=30,FOTO_H=40; // mm, pas foto 3x4 cm (tidak ikut diskalakan)
+ const FOTO_W=cfg.fw,FOTO_H=cfg.fh; // mm, rasio 3:4 seperti pas foto, disesuaikan per ukuran kartu
  c.innerHTML=ss.map(s=>{
   const k=ks.find(a=>a.id===s.kelas);
   return '<div class="kartu-vertikal" style="position:relative;width:'+W+'mm;height:'+H+'mm;overflow:hidden;border-radius:'+mm(3)+';background:#fff;color:#073c57;font-family:Arial,sans-serif;box-shadow:0 2px 9px #0003;break-inside:avoid;page-break-inside:avoid;display:flex;flex-direction:column;align-items:center;box-sizing:border-box">'+
