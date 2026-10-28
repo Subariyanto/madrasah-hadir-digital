@@ -27,8 +27,9 @@
 <script>
   // Konfigurasi Cloud Sync: default endpoint di-bundle. User bisa override via localStorage atau ?cloud=off.
   (function(){
-    // Default endpoint (production) — Cloudflare Worker + KV
-    var DEFAULT_URL = 'https://mhd-sync.subariyantoss2.workers.dev';
+    // Default endpoint (production) — MHD Sync Server di VPS (pengganti Cloudflare Worker + KV)
+    var DEFAULT_URL = 'https://api.pokjawasjember.com/mhd';
+    var LEGACY_URL = 'https://mhd-sync.subariyantoss2.workers.dev';
     var DEFAULT_KEY = 'MHDKV-ba74e1455683940808630668';
     var qp = new URLSearchParams(location.search);
     if(qp.get('cloud')==='off'){
@@ -36,6 +37,11 @@
     } else {
       try{
         var saved = JSON.parse(localStorage.getItem('mhd_cloud_cfg')||'null');
+        // Migrasi otomatis: konfigurasi lama yang masih menunjuk ke Worker dialihkan ke VPS
+        if(saved && saved.url && saved.url.replace(/\/+$/,'') === LEGACY_URL){
+          saved.url = DEFAULT_URL;
+          localStorage.setItem('mhd_cloud_cfg', JSON.stringify(saved));
+        }
         if(saved && saved.url && saved.key){
           window.MHD_SYNC_URL = saved.url;
           window.MHD_SYNC_KEY = saved.key;
@@ -1952,7 +1958,7 @@ function showCloudConfig(){
     '<h3 style="margin:0 0 12px;color:#15803d">\u2601\uFE0F Konfigurasi Cloud Sync</h3>'+
     '<p style="font-size:12px;color:#6b7280;margin-bottom:12px">Masukkan URL Sync & App Key. Halaman akan reload setelah simpan. Kosongkan untuk pakai default.</p>'+
     '<label style="font-size:13px;color:#374151">Sync URL</label>'+
-    '<input id="sbUrl" placeholder="https://mhd-sync.subariyantoss2.workers.dev" value="'+(cur.url||'')+'" style="margin-bottom:10px">'+
+    '<input id="sbUrl" placeholder="https://api.pokjawasjember.com/mhd" value="'+(cur.url||'')+'" style="margin-bottom:10px">'+
     '<label style="font-size:13px;color:#374151">App Key</label>'+
     '<input id="sbKey" placeholder="MHDKV-..." value="'+(cur.key||'')+'" style="margin-bottom:16px">'+
     '<div style="display:flex;gap:8px;justify-content:flex-end">'+
