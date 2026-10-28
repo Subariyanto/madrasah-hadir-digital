@@ -1445,9 +1445,10 @@ function generateQRCardsVertical(c,ss,ks,x,size){
      '<div style="text-align:left;line-height:1.15;min-width:0">'+
       '<div style="font-size:'+mm(2.1)+';font-weight:700">'+e(x.namaYayasan||'YAYASAN PENDIDIKAN ISLAM')+'</div>'+
       '<div style="font-size:'+mm(3)+';font-weight:800">'+e(x.namaSekolah||'MADRASAH')+'</div>'+
+      // alamat di dalam blok teks supaya sejajar dengan nama madrasah
+      (x.alamat?'<div style="font-size:'+mm(1.7)+';opacity:.9;margin-top:'+mm(0.5)+';line-height:1.2">'+e(x.alamat)+'</div>':'')+
      '</div>'+
     '</div>'+
-    (x.alamat?'<div style="font-size:'+mm(1.7)+';opacity:.9;margin-top:'+mm(0.8)+';line-height:1.2">'+e(x.alamat)+'</div>':'')+
    '</div>'+
    '<div style="font-size:'+mm(2.6)+';font-weight:900;letter-spacing:.04em;margin-top:'+mm(2)+';flex:none">KARTU PELAJAR</div>'+
    // foto 3x4 cm
